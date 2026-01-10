@@ -9,10 +9,7 @@ import (
 )
 
 func init() {
-	// Start Command Flags
-	rootCmd.Flags().StringP("config", "c", "config.yaml", "Path	 to config file (.yml)")
-	rootCmd.Flags().StringP("output", "o", "", "Path of the output file")
-	rootCmd.Flags().StringP("template", "t", "", "Path of the template file (.html)")
+	// Root Command Flags
 }
 
 var rootCmd = &cobra.Command{
