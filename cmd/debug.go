@@ -22,13 +22,14 @@ import (
 var tmplDef string
 
 func init() {
-	rootCmd.AddCommand(startCmd)
+	rootCmd.AddCommand(debugCmd)
 
-	// Start Command Flags
-	startCmd.Flags().StringP("config", "c", "config.yaml", "Path to config file")
+	// debug Command Flags
+	debugCmd.Flags().StringP("config", "c", "", "Path to config file")
+	debugCmd.Flags().StringP("output", "o", "", "Path of the output file")
 }
 
-var startCmd = &cobra.Command{
+var debugCmd = &cobra.Command{
 	Use:   "debug",
 	Short: "This creates a pdf of a debug page with some system information to troubleshoot errors or validate the installation.",
 	Run: func(cmd *cobra.Command, args []string) {
