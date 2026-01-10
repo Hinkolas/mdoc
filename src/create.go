@@ -34,7 +34,7 @@ func Create(input string) (*Document, error) {
 }
 
 // Creates
-func CreateWithTemplate(input, template string)
+func CreateWithTemplate(input, template string) {}
 
 // Creates an text object from the given input string.
 // Enables special syntax like YAML front matter and manual page-break.
