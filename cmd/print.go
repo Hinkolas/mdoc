@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hinkolas/mdoc/src"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,27 @@ var printCmd = &cobra.Command{
 	Short: "Generates a PDF from the provided markdown document.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		fmt.Println("TODO: Generate PDF")
+		// Open file
+		file, err := os.Open(".local/hello-world.md")
+		if err != nil {
+			fmt.Println("Error opening file:", err)
+			os.Exit(1)
+		}
+		defer file.Close()
+
+		// Parse markdown
+		document, err := src.ParseDocument(file)
+		if err != nil {
+			fmt.Println("Error parsing document:", err)
+			os.Exit(1)
+		}
+
+		err = document.Save("./test.pdf")
+		if err != nil {
+			fmt.Println("Error rendering document:", err)
+			os.Exit(1)
+		}
+
 		os.Exit(0)
 
 	},
