@@ -17,6 +17,7 @@ func init() {
 	// Print Command Flags
 	printCmd.Flags().StringP("config", "c", "", "Path to config file")
 	printCmd.Flags().StringP("output", "o", "", "Path of the output file")
+	printCmd.Flags().Bool("html", false, "Also export the raw HTML file alongside the PDF")
 }
 
 var printCmd = &cobra.Command{
@@ -54,8 +55,11 @@ var printCmd = &cobra.Command{
 		ext := filepath.Ext(base)
 		outputPath := strings.TrimSuffix(base, ext) + ".pdf"
 
+		// Check if HTML export is requested
+		exportHTML, _ := cmd.Flags().GetBool("html")
+
 		// Save document to output file
-		err = document.Save(outputPath)
+		err = document.Save(outputPath, exportHTML)
 		if err != nil {
 			fmt.Println("Error rendering document:", err)
 			os.Exit(1)
