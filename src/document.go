@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/adrg/frontmatter"
 	"github.com/go-rod/rod"
@@ -50,12 +51,22 @@ const FALLBACK_THEME = "<!doctype html><html><head><title>{{.Title}}</title></he
 const THEME_DIR = "./themes" // TODO: Remove in future releases
 
 // TODO: Generates the pdf using headless chromium and saves it to the given path.
-func (d *Document) Save(outputPath string) error {
+func (d *Document) Save(outputPath string, exportHTML bool) error {
 
 	// 0. Render the document into clean html
 	body, err := d.Render()
 	if err != nil {
 		return err
+	}
+
+	// Optionally export the raw HTML
+	if exportHTML {
+		htmlPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".html"
+		err = utils.OutputFile(htmlPath, body)
+		if err != nil {
+			return fmt.Errorf("failed to write HTML file: %w", err)
+		}
+		fmt.Printf("Exported HTML to %s\n", htmlPath)
 	}
 
 	userConfig, err := os.UserConfigDir()
