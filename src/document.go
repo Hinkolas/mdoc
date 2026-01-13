@@ -115,7 +115,7 @@ func (d *Document) Save(outputPath string) error {
 	// You can strictly type the config using the proto package
 	paperWidth := 8.27   // A4 Width (inches)
 	paperHeight := 11.69 // A4 Height (inches)
-	margin := 0.5
+	margin := 0.0
 	printBg := true
 	pdfData, err := page.PDF(&proto.PagePrintToPDF{
 		PaperWidth:      &paperWidth,
