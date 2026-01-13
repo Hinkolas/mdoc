@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -29,22 +30,40 @@ func init() {
 	debugCmd.Flags().StringP("output", "o", "", "Path of the output file")
 }
 
+// TODO: Adjust command and template to use the document.Save() function for DRY
 var debugCmd = &cobra.Command{
 	Use:   "debug",
 	Short: "This creates a pdf of a debug page with some system information to troubleshoot errors or validate the installation.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		fmt.Println("Initializing Browser...")
-
-		// 1. Look for the system browser path ('chromium', 'google-chrome', etc.)
-		path, has := launcher.LookPath()
-		if !has {
-			fmt.Println("Browser not found!")
+		userConfig, err := os.UserConfigDir()
+		if err != nil {
+			fmt.Println("Failed to get user config directory:", err)
 			os.Exit(1)
 		}
 
+		// Create the browser launcher instance
+		chromium := launcher.NewBrowser()
+		chromium.RootDir = filepath.Join(userConfig, "mdoc", "chromium")
+
+		var binPath string
+		err = chromium.Validate()
+		if err != nil {
+			fmt.Println("Unable to find packaged browser. Looking for local alternative...")
+			var has bool = false
+			binPath, has = launcher.LookPath()
+			if !has {
+				fmt.Println("No compatible browser found! Please run `mdoc install` to download the latest chromium snapshot.")
+				os.Exit(1)
+			}
+		} else {
+			binPath = chromium.BinPath()
+		}
+
+		fmt.Println("Initializing Browser...")
+
 		// 2. This attempts to launch the found Chrome installation.
-		u, err := launcher.New().Bin(path).Launch()
+		u, err := launcher.New().Bin(binPath).Launch()
 		if err != nil {
 			fmt.Println("Failed to launch browser:", err)
 			os.Exit(1)
