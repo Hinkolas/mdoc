@@ -7,14 +7,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/adrg/frontmatter"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
+	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 type Document struct {
@@ -42,10 +45,12 @@ var DEFAULT_CONFIG = DocumentConfig{
 }
 
 const FALLBACK_THEME = "<!doctype html><html><head><title>{{.Title}}</title></head><body>{{.Body}}</body></html>"
-const THEME_DIR = "${HOME}/.config/mdoc/themes"
+
+// const THEME_DIR = "${HOME}/.config/mdoc/themes"
+const THEME_DIR = "./themes" // TODO: Remove in future releases
 
 // TODO: Generates the pdf using headless chromium and saves it to the given path.
-func (d *Document) Save(path string) error {
+func (d *Document) Save(outputPath string) error {
 
 	// 0. Render the document into clean html
 	body, err := d.Render()
@@ -110,9 +115,7 @@ func (d *Document) Save(path string) error {
 	}
 
 	// 9. Save to disk
-	outputPath := fmt.Sprintf("debug-%d.pdf", time.Now().Unix())
 	_ = utils.OutputFile(outputPath, pdfData)
-
 	fmt.Printf("Done! Saved to %s\n", outputPath)
 
 	return nil
@@ -147,9 +150,25 @@ func (d *Document) Render() (string, error) {
 		return "", fmt.Errorf("failed to execute body template: %w", err)
 	}
 
-	// Convert markdown to HTML using goldmark
+	// Convert markdown to HTML using goldmark with GFM extensions (tables, strikethrough, etc.)
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			extension.GFM,   // Github Flavored Markdown (optional but recommended)
+			mathjax.MathJax, // The Star of the Show
+			extension.Footnote,
+		),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+		goldmark.WithRendererOptions(
+			// "Clean" HTML usually implies avoiding excessive escaping where unsafe
+			html.WithHardWraps(),
+			html.WithXHTML(),
+		),
+	)
+
 	var bodyBuf bytes.Buffer
-	if err := goldmark.Convert(mdBuf.Bytes(), &bodyBuf); err != nil {
+	if err := md.Convert(mdBuf.Bytes(), &bodyBuf); err != nil {
 		return "", fmt.Errorf("failed to convert markdown to HTML: %w", err)
 	}
 
