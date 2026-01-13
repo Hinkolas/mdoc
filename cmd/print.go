@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/hinkolas/mdoc/src"
 	"github.com/spf13/cobra"
@@ -18,12 +20,22 @@ func init() {
 }
 
 var printCmd = &cobra.Command{
-	Use:   "print",
+	Use:   "print [file]",
 	Short: "Generates a PDF from the provided markdown document.",
 	Run: func(cmd *cobra.Command, args []string) {
 
+		var inputPath string
+
+		// Determine input file path
+		if len(args) > 0 {
+			inputPath = args[0]
+		} else {
+			fmt.Println("No input file provided")
+			os.Exit(1)
+		}
+
 		// Open file
-		file, err := os.Open(".local/hello-world.md")
+		file, err := os.Open(inputPath)
 		if err != nil {
 			fmt.Println("Error opening file:", err)
 			os.Exit(1)
@@ -37,7 +49,13 @@ var printCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = document.Save("./test.pdf")
+		// Determine output file path
+		base := filepath.Base(inputPath)
+		ext := filepath.Ext(base)
+		outputPath := strings.TrimSuffix(base, ext) + ".pdf"
+
+		// Save document to output file
+		err = document.Save(outputPath)
 		if err != nil {
 			fmt.Println("Error rendering document:", err)
 			os.Exit(1)
