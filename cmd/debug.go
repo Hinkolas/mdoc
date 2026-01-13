@@ -139,7 +139,7 @@ var debugCmd = &cobra.Command{
 		}
 
 		// 9. Save to disk
-		outputPath := fmt.Sprintf("debug-%d.pdf", time.Now().Unix())
+		outputPath := fmt.Sprintf(".local/debug-%d.pdf", time.Now().Unix())
 		_ = utils.OutputFile(outputPath, pdfData)
 
 		fmt.Printf("Done! Saved to %s\n", outputPath)
