@@ -54,7 +54,7 @@ const THEME_DIR = "./themes" // TODO: Remove in future releases
 func (d *Document) Save(outputPath string, exportHTML bool) error {
 
 	// 0. Render the document into clean html
-	body, err := d.Render()
+	body, err := d.Render(RenderModePrint)
 	if err != nil {
 		return err
 	}
@@ -155,11 +155,20 @@ type RenderData struct {
 	Tags   []string
 	Data   map[string]any
 	Body   template.HTML
+	Mode   RenderMode
 }
 
-func (d *Document) Render() (string, error) {
+type RenderMode string
+
+const (
+	RenderModePrint   RenderMode = "print"
+	RenderModePreview RenderMode = "preview"
+)
+
+func (d *Document) Render(mode RenderMode) (string, error) {
 
 	var data = RenderData{
+		Mode:   mode,
 		Title:  d.Config.Title,
 		Author: d.Config.Author,
 		Tags:   d.Config.Tags,
