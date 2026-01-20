@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hinkolas/mdoc/src"
+	"github.com/hinkolas/mdoc/src/core"
 	"github.com/spf13/cobra"
 )
 
@@ -35,18 +35,9 @@ var printCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Open file
-		file, err := os.Open(inputPath)
+		document, err := core.OpenDocument(inputPath)
 		if err != nil {
-			fmt.Println("Error opening file:", err)
-			os.Exit(1)
-		}
-		defer file.Close()
-
-		// Parse markdown
-		document, err := src.ParseDocument(file)
-		if err != nil {
-			fmt.Println("Error parsing document:", err)
+			fmt.Println("Error opening document:", err)
 			os.Exit(1)
 		}
 
@@ -55,11 +46,8 @@ var printCmd = &cobra.Command{
 		ext := filepath.Ext(base)
 		outputPath := strings.TrimSuffix(base, ext) + ".pdf"
 
-		// Check if HTML export is requested
-		exportHTML, _ := cmd.Flags().GetBool("html")
-
 		// Save document to output file
-		err = document.Save(outputPath, exportHTML)
+		err = document.Print(outputPath)
 		if err != nil {
 			fmt.Println("Error rendering document:", err)
 			os.Exit(1)
