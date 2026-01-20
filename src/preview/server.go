@@ -15,24 +15,24 @@ import (
 //go:embed preview.html
 var previewHTML string
 
-// Message represents a WebSocket message with a type and optional payload
+// Message represents a WebSocket message with an event name and optional data
 type Message struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload,omitempty"`
+	Event string          `json:"event"`
+	Data  json.RawMessage `json:"data,omitempty"`
 }
 
-// CommandHandler handles incoming commands from the client
-type CommandHandler func(payload json.RawMessage) error
+// EventHandler handles incoming events from the client
+type EventHandler func(data json.RawMessage) error
 
 // PreviewServer manages the preview HTTP server and WebSocket connection
 type PreviewServer struct {
 	mu       sync.RWMutex
 	conn     *websocket.Conn
 	send     chan []byte
-	handlers map[string]CommandHandler
+	handlers map[string]EventHandler
 
-	// Callbacks for external integration
-	OnSave func() error
+	// Document path for rendering
+	DocumentPath string
 }
 
 var upgrader = websocket.Upgrader{
@@ -43,21 +43,22 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// NewPreviewServer creates a new preview server instance
-func NewPreviewServer() *PreviewServer {
+// NewPreviewServer creates a new preview server instance for the given document
+func NewPreviewServer(documentPath string) *PreviewServer {
 	s := &PreviewServer{
-		handlers: make(map[string]CommandHandler),
+		handlers:     make(map[string]EventHandler),
+		DocumentPath: documentPath,
 	}
-	s.RegisterHandler("save", s.handleSave)
-	s.RegisterHandler("save_at", s.handleSaveAt)
+	// Register built-in event handlers
+	s.RegisterHandler("render_request", s.handleRenderRequest)
 	return s
 }
 
-// RegisterHandler registers a handler for a specific command
-func (s *PreviewServer) RegisterHandler(command string, handler CommandHandler) {
+// RegisterHandler registers a handler for a specific event
+func (s *PreviewServer) RegisterHandler(event string, handler EventHandler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.handlers[command] = handler
+	s.handlers[event] = handler
 }
 
 // Send sends a message to the connected client
@@ -83,13 +84,18 @@ func (s *PreviewServer) Send(msg Message) error {
 	}
 }
 
-// SendPayload sends a message with a typed payload
-func (s *PreviewServer) SendPayload(msgType string, payload any) error {
-	data, err := json.Marshal(payload)
+// SendEvent sends a message with no data (event only)
+func (s *PreviewServer) SendEvent(event string) error {
+	return s.Send(Message{Event: event})
+}
+
+// SendEventWithData sends a message with event and data payload
+func (s *PreviewServer) SendEventWithData(event string, data any) error {
+	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
+		return fmt.Errorf("failed to marshal data: %w", err)
 	}
-	return s.Send(Message{Type: msgType, Payload: data})
+	return s.Send(Message{Event: event, Data: jsonData})
 }
 
 // IsConnected returns true if a client is connected

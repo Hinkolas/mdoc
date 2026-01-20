@@ -65,15 +65,15 @@ func (s *PreviewServer) readPump(conn *websocket.Conn) {
 		}
 
 		s.mu.RLock()
-		handler, exists := s.handlers[msg.Type]
+		handler, exists := s.handlers[msg.Event]
 		s.mu.RUnlock()
 
 		if exists {
-			if err := handler(msg.Payload); err != nil {
-				log.Printf("Handler error for '%s': %v", msg.Type, err)
+			if err := handler(msg.Data); err != nil {
+				log.Printf("Handler error for '%s': %v", msg.Event, err)
 			}
 		} else {
-			log.Printf("Unknown message type: %s", msg.Type)
+			log.Printf("Unknown event: %s", msg.Event)
 		}
 	}
 }

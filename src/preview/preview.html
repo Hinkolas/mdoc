@@ -5,7 +5,6 @@
     <title>{{.Title}}</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     <script>
         window.MathJax = {
@@ -27,17 +26,87 @@
 
     <script src="https://unpkg.com/pagedjs/dist/paged.js"></script>
     <script>
-        const paged = new Paged.Previewer();
-        let content = "<h1>Hello, world!</h1>";
+        let ws = null;
+
+        // WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = function(event) {
+                const msg = JSON.parse(event.data);
+                handleEvent(msg.event, msg.data);
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket disconnected, reconnecting in 2s...');
+                setTimeout(connectWebSocket, 2000);
+            };
+            
+            ws.onerror = function(err) {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        // Send event to server
+        function sendEvent(event, data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const msg = { event: event };
+                if (data !== undefined) {
+                    msg.data = data;
+                }
+                ws.send(JSON.stringify(msg));
+            } else {
+                console.warn('WebSocket not connected');
+            }
+        }
+
+        // Handle incoming events from server
+        function handleEvent(event, data) {
+            switch (event) {
+                case 'source_changed':
+                    console.log('Source file changed');
+                    break;
+                case 'render_result':
+                    const container = document.querySelector('#preview');
+                    container.innerHTML = '';
+                    // Create a new Previewer for each render (paged.js doesn't handle re-renders well)
+                    const previewer = new Paged.Previewer();
+                    previewer.preview(data.html, [], container).then(() => {
+                        console.log('Render complete');
+                    }).catch(err => {
+                        console.error('Render error:', err);
+                    });
+                    break;
+                default:
+                    console.log('Unknown event:', event);
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', function () {
             const body = document.body;
             const container = document.querySelector('#preview');
             const toggleButton = document.getElementById('toggle-sidebar');
+            const renderButton = document.getElementById('render');
 
-            paged.preview(content, [], container);
+            // Connect WebSocket
+            connectWebSocket();
+
+            // Toggle sidebar
             toggleButton.addEventListener('click', function () {
                 body.classList.toggle('aside-collapsed');
+            });
+
+            // Render button
+            renderButton.addEventListener('click', function () {
+                console.log('Requesting render...');
+                sendEvent('render_request');
             });
         });
     </script>
@@ -98,7 +167,8 @@
             font-weight: 500;
         }
 
-        #toggle-sidebar {
+        #toggle-sidebar,
+        #render {
             background: #374151;
             border: none;
             color: white;
@@ -109,7 +179,8 @@
             transition: background 0.2s;
         }
 
-        #toggle-sidebar:hover {
+        #toggle-sidebar:hover,
+        #render:hover {
             background: #4b5563;
         }
 
@@ -145,7 +216,7 @@
         <span>{{.Title}}</span>
         <div style="display: flex; gap: 8px; align-items: center;">
             <button id="toggle-sidebar">Toggle Sidebar</button>
-            <button id="save">Save</button>
+            <button id="render">Render</button>
         </div>
     </header>
     <main id="preview">

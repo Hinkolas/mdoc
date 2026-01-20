@@ -2,51 +2,76 @@ package preview
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/hinkolas/mdoc/src/core"
 )
 
 type Watcher struct {
-	watcher *fsnotify.Watcher
+	watcher   *fsnotify.Watcher
+	OnChanged func()
 }
 
-func NewWatcher(document *core.Document) (*Watcher, error) {
-
-	// Set up file watcher for hot reload
+// NewWatcher creates a new file watcher for the given paths
+func NewWatcher(paths ...string) (*Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file watcher: %w", err)
 	}
-	defer watcher.Close()
 
-	// Watch the source file
-	absInputPath, err := filepath.Abs(document.DocumentPath)
-	if err != nil {
-		fmt.Println("Failed to get absolute path for input file:", err)
-		os.Exit(1)
-	}
-	if err := watcher.Add(absInputPath); err != nil {
-		fmt.Println("Failed to watch input file:", err)
-		os.Exit(1)
-	}
+	for _, path := range paths {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			watcher.Close()
+			return nil, fmt.Errorf("failed to get absolute path for %s: %w", path, err)
+		}
 
-	// Watch the theme file
-	themePath := filepath.Join(os.ExpandEnv(core.THEME_DIR), document.Config.Theme+".html")
-	absThemePath, err := filepath.Abs(themePath)
-	if err != nil {
-		fmt.Println("Failed to get absolute path for theme file:", err)
-		os.Exit(1)
-	}
-	if err := watcher.Add(absThemePath); err != nil {
-		fmt.Printf("Warning: Failed to watch theme file %s: %v\n", absThemePath, err)
-		// Continue anyway - theme watching is optional
+		// Check if file exists
+		if _, err := os.Stat(absPath); os.IsNotExist(err) {
+			log.Printf("Warning: file does not exist, skipping watch: %s", absPath)
+			continue
+		}
+
+		if err := watcher.Add(absPath); err != nil {
+			log.Printf("Warning: failed to watch %s: %v", absPath, err)
+			continue
+		}
+		log.Printf("Watching: %s", absPath)
 	}
 
 	return &Watcher{
 		watcher: watcher,
 	}, nil
+}
 
+// Watch starts watching for file changes and calls OnChanged when detected
+// This method blocks until Close is called
+func (w *Watcher) Watch() {
+	for {
+		select {
+		case event, ok := <-w.watcher.Events:
+			if !ok {
+				return
+			}
+			// Only react to write events
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				log.Printf("File changed: %s", event.Name)
+				if w.OnChanged != nil {
+					w.OnChanged()
+				}
+			}
+		case err, ok := <-w.watcher.Errors:
+			if !ok {
+				return
+			}
+			log.Printf("Watcher error: %v", err)
+		}
+	}
+}
+
+// Close stops the watcher
+func (w *Watcher) Close() error {
+	return w.watcher.Close()
 }
