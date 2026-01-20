@@ -91,6 +91,9 @@ func (d *Document) Render() (*RenderData, error) {
 	if err := theme.Execute(&htmlBuf, data); err != nil {
 		return nil, fmt.Errorf("failed to execute theme template: %w", err)
 	}
+
+	data.Body = template.HTML(htmlBuf.String())
+
 	return data, nil
 
 }
