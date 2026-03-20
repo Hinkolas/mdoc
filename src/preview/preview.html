@@ -32,24 +32,24 @@
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
-            
+
             ws = new WebSocket(wsUrl);
-            
-            ws.onopen = function() {
+
+            ws.onopen = function () {
                 console.log('WebSocket connected');
             };
-            
-            ws.onmessage = function(event) {
+
+            ws.onmessage = function (event) {
                 const msg = JSON.parse(event.data);
                 handleEvent(msg.event, msg.data);
             };
-            
-            ws.onclose = function() {
+
+            ws.onclose = function () {
                 console.log('WebSocket disconnected, reconnecting in 2s...');
                 setTimeout(connectWebSocket, 2000);
             };
-            
-            ws.onerror = function(err) {
+
+            ws.onerror = function (err) {
                 console.error('WebSocket error:', err);
             };
         }
@@ -117,13 +117,18 @@
             align-items: center;
             gap: 40px;
             padding: 40px;
-            background: #525659;
             min-height: 100%;
         }
 
         .pagedjs_page {
             background: white;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        @page {
+            size: A4;
+            margin: 3cm;
+            padding: 0;
         }
     </style>
     <style>

@@ -7,6 +7,8 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-rod/rod v0.116.2
 	github.com/goforj/godump v1.9.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/litao91/goldmark-mathjax v0.0.0-20210217064022-a43cf739a50f
 	github.com/spf13/cobra v1.10.2
 	github.com/yuin/goldmark v1.7.16
