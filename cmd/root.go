@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "0.1.0"
+// Version is the build version. It is "dev" for local builds and is overridden
+// at release time by GoReleaser via -ldflags -X.
+var Version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:           "mdoc",

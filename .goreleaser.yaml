@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: mdoc
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mdoc
+    main: .
+    binary: mdoc
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/hinkolas/mdoc/cmd.Version={{ .Version }}
+
+archives:
+  - id: mdoc
+    formats: [tar.gz]
+    # install.sh derives this exact name, so keep the two in sync.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: hinkolas
+    name: mdoc
+  draft: false
+  prerelease: auto
