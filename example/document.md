@@ -23,7 +23,7 @@ $$
 T_{actual} = T_{est} \times \pi + (N_{meetings} \times 2)
 $$
 
-Where \( N_{meetings} \) approaches infinity as the deadline approaches zero.
+Where $N_{meetings}$ approaches infinity as the deadline approaches zero.
 
 ## 2. Feature Comparison Table
 

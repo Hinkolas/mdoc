@@ -76,10 +76,15 @@
 
                 if (window.renderMathInElement) {
                     renderMathInElement(staging, {
+                        // Stick to dollar delimiters: Goldmark treats \(
+                        // and \[ as CommonMark backslash escapes and strips
+                        // the slashes before KaTeX gets a chance to see
+                        // them, so those forms can never reach this point.
+                        // For a literal dollar sign in body text, escape
+                        // as \$.
                         delimiters: [
-                            { left: "\\(", right: "\\)", display: false },
-                            { left: "\\[", right: "\\]", display: true },
                             { left: "$$", right: "$$", display: true },
+                            { left: "$", right: "$", display: false },
                         ],
                         throwOnError: false,
                     });
