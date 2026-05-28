@@ -74,8 +74,10 @@ func AppMode(url string) (*Browser, error) {
 	// NewAppMode is the go-rod preset that knows the magic flag dance:
 	// it deletes "no-startup-window" (which the plain launcher sets by
 	// default and which suppresses the --app window from ever opening)
-	// and disables the automation banner.
-	l := launcher.NewAppMode(url).Bin(binPath)
+	// and disables the automation banner. We also strip the site-isolation
+	// override, which is a default automation flag that Chromium otherwise
+	// warns the user about with a yellow "unsupported flag" bar.
+	l := launcher.NewAppMode(url).Bin(binPath).Delete("disable-site-isolation-trials")
 	ctrlURL, err := l.Launch()
 	if err != nil {
 		return nil, fmt.Errorf("launch chromium: %w", err)
