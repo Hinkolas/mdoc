@@ -15,6 +15,15 @@ tags: [example, latex, code, footnotes, checklist]
 
 Welcome to this generic test document. This file exists to verify that your Markdown processor can handle the chaotic beauty of a full-stack project documentation file.
 
+<figure>
+  <img src="assets/programmer.jpg" alt="A programmer staring at a screen with quiet dissatisfaction." />
+  <figcaption>
+    A natural reaction to reading one's own code three weeks later.
+    Photo by <a href="https://www.pexels.com/photo/programmer-looking-with-dissatisfaction-6804594/">cottonbro studio on Pexels</a>,
+    used under the <a href="https://www.pexels.com/license/">Pexels License</a>.
+  </figcaption>
+</figure>
+
 ## 1. The Mathematics of Estimation
 
 We can calculate the actual time required to complete a ticket ($T_{actual}$) based on the Project Manager's estimate ($T_{est}$) using the **Hofstadter's Law** variable:
