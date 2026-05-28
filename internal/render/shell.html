@@ -143,6 +143,30 @@
             // position is preserved.
             window.__mdocPaginate = paginate;
 
+            // Route external link clicks through the preview server so they
+            // open in the OS default browser instead of replacing the
+            // iframe (which would strand the user — chromeless app windows
+            // have no back button). Same-origin links keep their default
+            // behavior so anchor jumps and internal navigation still work.
+            // In a non-preview context (e.g. the print pipeline's headless
+            // browser, which never receives clicks) the fetch just no-ops.
+            document.addEventListener("click", function (e) {
+                const a = e.target.closest && e.target.closest("a");
+                if (!a || !a.href) return;
+                let u;
+                try { u = new URL(a.href, location.href); } catch (_) { return; }
+                if (u.origin === location.origin) return;
+                const scheme = u.protocol.toLowerCase();
+                if (scheme !== "http:" && scheme !== "https:" && scheme !== "mailto:") return;
+                e.preventDefault();
+                fetch("/open-url", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: u.toString() }),
+                    keepalive: true,
+                }).catch(() => {});
+            }, true);
+
             // Initial render: pull the inlined themed HTML out of the
             // <template> and paginate it. Resolves __mdocPagedDone so the
             // print pipeline knows when pages are ready for PDF capture.

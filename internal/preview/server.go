@@ -4,6 +4,7 @@
 package preview
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -67,6 +68,7 @@ func (s *Server) Start(port int) error {
 	r.HandleFunc("/preview/body", s.handlePreviewBody).Methods("GET")
 	r.HandleFunc("/ws", s.handleWebSocket)
 	r.HandleFunc("/print", s.handlePrint).Methods("POST")
+	r.HandleFunc("/open-url", s.handleOpenURL).Methods("POST")
 	r.PathPrefix("/_/ui/").Handler(http.StripPrefix("/_/ui/", http.FileServer(http.FS(assets.UI()))))
 	r.PathPrefix("/_/vendor/").Handler(http.StripPrefix("/_/vendor/", http.FileServer(http.FS(assets.Vendor()))))
 	r.PathPrefix("/assets/").HandlerFunc(s.serveDocAssets)
@@ -221,6 +223,25 @@ func (s *Server) handlePrint(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
 	_, _ = io.Copy(w, f)
+}
+
+// handleOpenURL receives a URL clicked inside the preview iframe and
+// hands it off to the operating system's default browser. Without this
+// hop the iframe would navigate itself to the external page, leaving
+// the user stuck inside a chromeless window with no back button.
+func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := openInDefaultBrowser(body.URL); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // serveDocAssets exposes files inside the document's directory at /assets/*
