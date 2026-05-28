@@ -40,41 +40,83 @@
     <template id="mdoc-source">{{.ThemedHTML}}</template>
     <div id="mdoc-pages"></div>
     <script>
-        window.__mdocPagedDone = (async () => {
-            const tpl = document.getElementById("mdoc-source");
+        (function () {
             const target = document.getElementById("mdoc-pages");
-            // Materialize the source so KaTeX can scan it before paged.js
-            // computes per-page box sizes.
-            const staging = document.createElement("div");
-            staging.appendChild(tpl.content.cloneNode(true));
-            // Extract theme stylesheets and pass them to Previewer.preview()
-            // as the explicit `stylesheets` arg. Paged.js's Polisher only
-            // reads @page rules from there — sheets that merely live in
-            // <head> are ignored, and the engine falls back to Letter with
-            // 1in margins.
-            const sheetURLs = [];
-            staging.querySelectorAll("style").forEach(s => {
-                const blob = new Blob([s.textContent], { type: "text/css" });
-                sheetURLs.push(URL.createObjectURL(blob));
-                s.remove();
-            });
-            staging.querySelectorAll("link[rel='stylesheet']").forEach(l => {
-                sheetURLs.push(l.href);
-                l.remove();
-            });
-            if (window.renderMathInElement) {
-                renderMathInElement(staging, {
-                    delimiters: [
-                        { left: "\\(", right: "\\)", display: false },
-                        { left: "\\[", right: "\\]", display: true },
-                        { left: "$$", right: "$$", display: true },
-                    ],
-                    throwOnError: false,
+            // Stylesheets we handed to paged.js on the last run; kept so we
+            // can revoke their blob URLs when a fresh re-pagination has
+            // replaced their pages and they're no longer referenced.
+            let activeSheets = [];
+            // Sequence counter: if re-paginations overlap, only the latest
+            // is allowed to scroll-restore and clean up stylesheets.
+            let seq = 0;
+
+            async function paginate(html) {
+                const mySeq = ++seq;
+                const scrollY = window.scrollY;
+
+                const staging = document.createElement("div");
+                staging.innerHTML = html;
+
+                // Extract theme stylesheets into blob URLs and feed them to
+                // Previewer.preview() as the explicit `stylesheets` arg.
+                // Paged.js's Polisher only reads @page rules from there.
+                const sheetURLs = [];
+                staging.querySelectorAll("style").forEach(s => {
+                    const blob = new Blob([s.textContent], { type: "text/css" });
+                    sheetURLs.push(URL.createObjectURL(blob));
+                    s.remove();
                 });
+                staging.querySelectorAll("link[rel='stylesheet']").forEach(l => {
+                    sheetURLs.push(l.href);
+                    l.remove();
+                });
+
+                if (window.renderMathInElement) {
+                    renderMathInElement(staging, {
+                        delimiters: [
+                            { left: "\\(", right: "\\)", display: false },
+                            { left: "\\[", right: "\\]", display: true },
+                            { left: "$$", right: "$$", display: true },
+                        ],
+                        throwOnError: false,
+                    });
+                }
+
+                const oldSheets = activeSheets;
+                // Drop the previous pages right before paginating the new
+                // ones — paged.js's Previewer appends into the target, it
+                // doesn't replace.
+                target.innerHTML = "";
+                const previewer = new PagedModule.Previewer();
+                await previewer.preview(staging.innerHTML, sheetURLs, target);
+
+                // A newer call superseded us between the await above and
+                // here: leave the latest call's results alone.
+                if (mySeq !== seq) {
+                    sheetURLs.forEach(u => URL.revokeObjectURL(u));
+                    return;
+                }
+
+                activeSheets = sheetURLs;
+                oldSheets.forEach(u => URL.revokeObjectURL(u));
+
+                // Restore scroll. Done after layout settles via rAF so the
+                // pages have measurable heights when we ask the browser to
+                // scroll.
+                requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+                return true;
             }
-            const previewer = new PagedModule.Previewer();
-            await previewer.preview(staging.innerHTML, sheetURLs, target);
-            return true;
+
+            // Expose for the parent SPA to call on file-change events; no
+            // iframe reload needed, which means no flicker and the scroll
+            // position is preserved.
+            window.__mdocPaginate = paginate;
+
+            // Initial render: pull the inlined themed HTML out of the
+            // <template> and paginate it. Resolves __mdocPagedDone so the
+            // print pipeline knows when pages are ready for PDF capture.
+            const tpl = document.getElementById("mdoc-source");
+            window.__mdocPagedDone = paginate(tpl.innerHTML);
         })();
     </script>
 </body>

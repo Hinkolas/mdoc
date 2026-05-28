@@ -1,7 +1,9 @@
 // Preview SPA controller. Hosts the document in an iframe pointed at
-// /preview (which serves the same shell.html-wrapped HTML the print
-// pipeline uses, so what you see is what you print). The WebSocket only
-// signals "reload" — no HTML payload travels over it.
+// /preview (the same shell.html-wrapped HTML the print pipeline uses,
+// so what you see is what you print). On file-change events the iframe
+// fetches just the themed body from /preview/body and re-paginates in
+// place, which preserves scroll position and avoids the iframe-reload
+// flicker. The WebSocket only carries a "reload" event — no payload.
 
 (function () {
     const statusEl = document.getElementById("status");
@@ -20,10 +22,39 @@
         }
     }
 
-    function reloadFrame() {
-        // Use a cache-busting query so editor saves can't be hidden by the
-        // browser's in-memory cache, even though /preview already sets
-        // Cache-Control: no-store.
+    // Are the iframe document and its __mdocPaginate function ready? We
+    // need both before we can do an in-place re-paginate; until they're
+    // there we fall back to a full iframe reload.
+    function iframeReady() {
+        try {
+            return Boolean(frame.contentWindow && frame.contentWindow.__mdocPaginate);
+        } catch (_) {
+            return false; // cross-origin throws; shouldn't happen here
+        }
+    }
+
+    async function repaint() {
+        if (!iframeReady()) {
+            // Iframe still loading; the initial /preview render is fresh
+            // enough so we can just wait for the next file change.
+            return;
+        }
+        setStatus("Reloading…", "busy");
+        try {
+            const res = await fetch("/preview/body", { cache: "no-store" });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            await frame.contentWindow.__mdocPaginate(html);
+            setStatus("Ready", "ok", 1200);
+        } catch (err) {
+            console.error("repaint failed", err);
+            setStatus("Reload failed: " + err.message, "err", 4000);
+        }
+    }
+
+    function fullReload() {
+        // Cache-bust just in case; /preview already sets Cache-Control:
+        // no-store but iframes can be finicky.
         const u = new URL("/preview", location.origin);
         u.searchParams.set("t", String(Date.now()));
         frame.src = u.pathname + u.search;
@@ -46,24 +77,15 @@
         ws.onmessage = (evt) => {
             let msg;
             try { msg = JSON.parse(evt.data); } catch (_) { return; }
-            if (msg.event === "reload") {
-                setStatus("Reloading…", "busy");
-                reloadFrame();
-            }
+            if (msg.event === "reload") repaint();
         };
     }
 
-    function send(event) {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ event }));
-    }
-
     reloadBtn.addEventListener("click", () => {
+        // Force a full iframe reload — handy when the in-iframe state is
+        // somehow stuck and the user wants a hard reset.
         setStatus("Reloading…", "busy");
-        reloadFrame();
-        // Also notify the server so other observers (none today, but the
-        // hook is here) see a coherent reload signal.
-        send("reload");
+        fullReload();
     });
 
     printBtn.addEventListener("click", async () => {

@@ -64,6 +64,7 @@ func (s *Server) Start(port int) error {
 	r := mux.NewRouter()
 	r.HandleFunc("/", s.handleIndex).Methods("GET")
 	r.HandleFunc("/preview", s.handlePreview).Methods("GET")
+	r.HandleFunc("/preview/body", s.handlePreviewBody).Methods("GET")
 	r.HandleFunc("/ws", s.handleWebSocket)
 	r.HandleFunc("/print", s.handlePrint).Methods("POST")
 	r.PathPrefix("/_/ui/").Handler(http.StripPrefix("/_/ui/", http.FileServer(http.FS(assets.UI()))))
@@ -153,6 +154,35 @@ func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
 	}
 	// Make sure browsers always re-fetch on iframe reload — otherwise edits
 	// to the source can be masked by the disk cache.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, html)
+}
+
+// handlePreviewBody returns just the themed HTML (no shell wrap), used by
+// the iframe to re-paginate in place without a full reload. Theme @page
+// rules and other styles ride along inside <style> tags; the in-iframe
+// paginate function extracts them and feeds them to paged.js's Polisher.
+func (s *Server) handlePreviewBody(w http.ResponseWriter, _ *http.Request) {
+	doc, err := document.Open(s.docPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	html, _, err := render.RenderThemed(doc, thm, render.Options{
+		VendorBase: "/_/vendor",
+		BaseHref:   "/assets/",
+		Version:    s.version,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = io.WriteString(w, html)
