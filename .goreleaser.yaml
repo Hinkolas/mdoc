@@ -53,3 +53,7 @@ release:
     name: mdoc
   draft: false
   prerelease: auto
+  # ship the installer as a release asset so it is reachable at
+  # /releases/latest/download/install.sh
+  extra_files:
+    - glob: ./install.sh
