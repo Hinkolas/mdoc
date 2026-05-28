@@ -1,5 +1,6 @@
 .local/
 .DS_Store
 *-test.html
+*.pdf
 .claude
 _legacy/
