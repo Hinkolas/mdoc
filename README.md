@@ -15,12 +15,12 @@ It ships with a live preview that reloads in place on every save, so you can ite
 
 ## Install
 
-Requires Go 1.26 or newer.
-
 ```bash
-go install github.com/hinkolas/mdoc@latest
+curl -fsSL https://github.com/Hinkolas/mdoc/releases/latest/download/install.sh | sh
 mdoc install
 ```
+
+This installs the latest release binary for your platform (Linux and macOS, amd64 and arm64) into `~/.local/bin`. Set `MDOC_BIN_DIR` to install elsewhere, or `MDOC_VERSION` (e.g. `MDOC_VERSION=v0.1.0`) to pin a specific version.
 
 `mdoc install` downloads a known-good Chromium snapshot into `$XDG_CACHE_HOME/mdoc/chromium` (`~/Library/Caches/mdoc/chromium` on macOS). If a system Chromium is already on your `PATH`, mdoc will use it as a fallback and you can skip this step.
 
