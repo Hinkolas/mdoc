@@ -32,14 +32,6 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	send := s.send
 	s.mu.Unlock()
 
-	// Push an initial render as soon as the client connects so the window
-	// isn't blank while we wait for the first file change.
-	go func() {
-		if err := s.PushRender(); err != nil {
-			log.Printf("initial render: %v", err)
-		}
-	}()
-
 	go s.writePump(conn, send)
 	s.readPump(conn)
 }
@@ -64,9 +56,11 @@ func (s *Server) readPump(conn *websocket.Conn) {
 		if err := json.Unmarshal(data, &m); err != nil {
 			continue
 		}
+		// Client asks for a forced reload (e.g. the Reload button) — same
+		// effect as a watcher-triggered reload, so reuse the push path.
 		if m.Event == "reload" {
-			if err := s.PushRender(); err != nil {
-				log.Printf("reload render: %v", err)
+			if err := s.PushReload(); err != nil {
+				log.Printf("reload push: %v", err)
 			}
 		}
 	}

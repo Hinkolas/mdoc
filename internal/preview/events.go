@@ -6,14 +6,11 @@ import (
 )
 
 // message is the wire format for WebSocket frames in both directions.
+// The protocol is intentionally minimal: the server pushes "reload" when
+// the document or theme changes and the iframe re-fetches /preview. There
+// is no per-message HTML payload.
 type message struct {
 	Event string `json:"event"`
-	Data  any    `json:"data,omitempty"`
-}
-
-// renderPayload is the body of a server -> client `render` event.
-type renderPayload struct {
-	HTML string `json:"html"`
 }
 
 // sendMessage marshals and queues a frame for the connected client. Returns

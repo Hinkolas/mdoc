@@ -1,6 +1,6 @@
-// Package preview runs the live-preview HTTP server: serves the SPA, pushes
-// freshly rendered HTML over WebSocket on file changes, and proxies an HTTP
-// endpoint that triggers the print pipeline.
+// Package preview runs the live-preview HTTP server: serves the SPA, an
+// iframe-hosted paged.js view of the document, pushes a reload signal over
+// WebSocket on file changes, and exposes /print to trigger PDF generation.
 package preview
 
 import (
@@ -63,6 +63,7 @@ func (s *Server) Start(port int) error {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", s.handleIndex).Methods("GET")
+	r.HandleFunc("/preview", s.handlePreview).Methods("GET")
 	r.HandleFunc("/ws", s.handleWebSocket)
 	r.HandleFunc("/print", s.handlePrint).Methods("POST")
 	r.PathPrefix("/_/ui/").Handler(http.StripPrefix("/_/ui/", http.FileServer(http.FS(assets.UI()))))
@@ -86,26 +87,10 @@ func (s *Server) Shutdown() error {
 	return s.httpSrv.Close()
 }
 
-// PushRender re-reads the document, runs the pipeline, and pushes the
-// resulting HTML over the WebSocket to the connected client (if any).
-func (s *Server) PushRender() error {
-	doc, err := document.Open(s.docPath)
-	if err != nil {
-		return err
-	}
-	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
-	if err != nil {
-		return err
-	}
-	html, _, err := render.RenderThemed(doc, thm, render.Options{
-		VendorBase: "/_/vendor",
-		BaseHref:   s.URL(),
-		Version:    s.version,
-	})
-	if err != nil {
-		return err
-	}
-	return s.sendMessage(message{Event: "render", Data: renderPayload{HTML: html}})
+// PushReload notifies the connected client that the underlying document or
+// theme changed and the iframe should be reloaded.
+func (s *Server) PushReload() error {
+	return s.sendMessage(message{Event: "reload"})
 }
 
 // CurrentThemePath returns the resolved theme path of the current document.
@@ -122,6 +107,7 @@ func (s *Server) CurrentThemePath() (string, error) {
 	return thm.Path, nil
 }
 
+// handleIndex serves the preview SPA chrome (header + iframe).
 func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	doc, err := document.Open(s.docPath)
 	if err != nil {
@@ -140,6 +126,36 @@ func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = t.Execute(w, map[string]any{"Title": doc.Config.Title})
+}
+
+// handlePreview returns the document re-rendered through the same shell.html
+// path the print pipeline uses, so the iframe's paged.js layout matches the
+// PDF exactly.
+func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
+	doc, err := document.Open(s.docPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	html, err := render.Render(doc, thm, render.Options{
+		VendorBase: "/_/vendor",
+		BaseHref:   "/assets/",
+		Version:    s.version,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Make sure browsers always re-fetch on iframe reload — otherwise edits
+	// to the source can be masked by the disk cache.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, html)
 }
 
 func (s *Server) handlePrint(w http.ResponseWriter, _ *http.Request) {
@@ -185,7 +201,7 @@ func (s *Server) serveDocAssets(w http.ResponseWriter, r *http.Request) {
 	rel := strings.TrimPrefix(r.URL.Path, "/assets/")
 	full := filepath.Join(docDir, filepath.FromSlash(rel))
 	absFull, err := filepath.Abs(full)
-	if err != nil || !strings.HasPrefix(absFull, docDir+string(filepath.Separator)) && absFull != docDir {
+	if err != nil || (!strings.HasPrefix(absFull, docDir+string(filepath.Separator)) && absFull != docDir) {
 		http.NotFound(w, r)
 		return
 	}

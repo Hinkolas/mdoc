@@ -39,8 +39,8 @@ var openCmd = &cobra.Command{
 
 		themePath, _ := srv.CurrentThemePath()
 		watcher, err := preview.NewWatcher(func() {
-			if err := srv.PushRender(); err != nil {
-				fmt.Fprintln(os.Stderr, "render:", err)
+			if err := srv.PushReload(); err != nil {
+				fmt.Fprintln(os.Stderr, "reload:", err)
 			}
 		}, doc.Path, themePath)
 		if err != nil {
