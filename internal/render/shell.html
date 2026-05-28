@@ -22,6 +22,21 @@
             // computes per-page box sizes.
             const staging = document.createElement("div");
             staging.appendChild(tpl.content.cloneNode(true));
+            // Extract theme stylesheets and pass them to Previewer.preview()
+            // as the explicit `stylesheets` arg. Paged.js's Polisher only
+            // reads @page rules from there — sheets that merely live in
+            // <head> are ignored, and the engine falls back to Letter with
+            // 1in margins.
+            const sheetURLs = [];
+            staging.querySelectorAll("style").forEach(s => {
+                const blob = new Blob([s.textContent], { type: "text/css" });
+                sheetURLs.push(URL.createObjectURL(blob));
+                s.remove();
+            });
+            staging.querySelectorAll("link[rel='stylesheet']").forEach(l => {
+                sheetURLs.push(l.href);
+                l.remove();
+            });
             if (window.renderMathInElement) {
                 renderMathInElement(staging, {
                     delimiters: [
@@ -33,7 +48,7 @@
                 });
             }
             const previewer = new PagedModule.Previewer();
-            await previewer.preview(staging.innerHTML, [], target);
+            await previewer.preview(staging.innerHTML, sheetURLs, target);
             return true;
         })();
     </script>
