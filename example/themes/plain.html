@@ -1,0 +1,158 @@
+<style>
+    /* Default "plain" theme. A boring, dependable allrounder: A4, generous
+       margins, serif body, sans-serif headings, page numbers in the top
+       margin (suppressed on the first page so a title or cover isn't
+       numbered). Built for paged.js — uses @page margin boxes, break-
+       avoid hints, and orphan/widow control. */
+
+    @page {
+        size: A4;
+        margin: 25mm 22mm 28mm 22mm;
+        @bottom-center {
+            content: counter(page);
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            font-size: 9pt;
+            color: #6b7280;
+        }
+    }
+
+    @page :first {
+        @bottom-center { content: none; }
+    }
+
+    body {
+        font-family: "Charter", "Iowan Old Style", "Source Serif Pro", Cambria, Georgia, serif;
+        font-size: 11pt;
+        line-height: 1.55;
+        color: #1a1a1a;
+        hyphens: auto;
+        text-rendering: optimizeLegibility;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-weight: 600;
+        line-height: 1.25;
+        color: #111;
+        margin: 1.5em 0 0.4em;
+        break-after: avoid;
+    }
+
+    h1 { font-size: 1.9em; margin-top: 0; }
+    h2 { font-size: 1.4em; }
+    h3 { font-size: 1.15em; }
+    h4 { font-size: 1em; }
+    h5, h6 { font-size: 0.95em; color: #374151; }
+
+    p { margin: 0 0 0.7em; orphans: 3; widows: 3; }
+
+    a {
+        color: #1d4ed8;
+        text-decoration: none;
+        border-bottom: 1px solid currentColor;
+    }
+
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+
+    code {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.9em;
+        background: #f3f4f6;
+        padding: 0.05em 0.35em;
+        border-radius: 3px;
+    }
+
+    pre {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        background: #f3f4f6;
+        padding: 10px 14px;
+        border-radius: 4px;
+        line-height: 1.45;
+        font-size: 0.85em;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        break-inside: avoid;
+        margin: 0.8em 0;
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        font-size: inherit;
+        border-radius: 0;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        font-size: 0.95em;
+        break-inside: avoid;
+    }
+
+    th, td {
+        border-bottom: 1px solid #d1d5db;
+        padding: 6px 10px;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    th {
+        border-bottom: 2px solid #111;
+        font-weight: 600;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+
+    blockquote {
+        border-left: 3px solid #d1d5db;
+        margin: 0.8em 0;
+        padding: 0.1em 0 0.1em 1em;
+        color: #4b5563;
+        font-style: italic;
+    }
+
+    blockquote blockquote { margin: 0.6em 0; }
+
+    ul, ol { margin: 0 0 0.8em; padding-left: 1.4em; }
+    li { margin: 0.15em 0; }
+
+    /* GFM task lists. */
+    li input[type="checkbox"] {
+        margin-right: 0.4em;
+        vertical-align: middle;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+        break-inside: avoid;
+    }
+
+    figure { margin: 1em 0; break-inside: avoid; }
+    figcaption {
+        font-size: 0.85em;
+        color: #6b7280;
+        text-align: center;
+        margin-top: 0.4em;
+    }
+
+    hr {
+        border: none;
+        border-top: 1px solid #d1d5db;
+        margin: 1.4em 0;
+    }
+
+    .footnotes {
+        margin-top: 2em;
+        padding-top: 0.8em;
+        border-top: 1px solid #d1d5db;
+        font-size: 0.9em;
+        color: #374151;
+    }
+
+    .footnotes ol { padding-left: 1.2em; }
+    .footnotes p { margin: 0; display: inline; }
+</style>
+
+{{.Body}}
