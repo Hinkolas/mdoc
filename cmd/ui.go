@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // stdoutIsTTY reports whether stdout is attached to a terminal. Set once
@@ -44,4 +46,45 @@ func printBrandHeader() {
 func printRow(labelWidth int, label, value string) {
 	pad := strings.Repeat(" ", labelWidth-len(label))
 	fmt.Printf("  %s  %s%s%s\n", cyan("➜"), dim(label), pad, value)
+}
+
+// relToCwd returns a path made relative to the current working directory
+// when that's shorter and stays inside the cwd subtree; otherwise the
+// absolute path is returned unchanged.
+func relToCwd(p string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return p
+	}
+	rel, err := filepath.Rel(cwd, p)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return p
+	}
+	return rel
+}
+
+// humanSize formats a byte count as "267 KB", "1.4 MB", etc. — the kind
+// of unit a user actually cares about for a generated artifact.
+func humanSize(n int64) string {
+	const k = 1024.0
+	f := float64(n)
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d B", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.0f KB", f/k)
+	case n < 1024*1024*1024:
+		return fmt.Sprintf("%.1f MB", f/(k*k))
+	default:
+		return fmt.Sprintf("%.1f GB", f/(k*k*k))
+	}
+}
+
+// shortDuration trims the noise from time.Duration's String — ms for very
+// fast operations, one-decimal seconds otherwise.
+func shortDuration(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	return fmt.Sprintf("%.1fs", d.Seconds())
 }
