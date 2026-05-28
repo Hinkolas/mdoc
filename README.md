@@ -163,6 +163,15 @@ foo.md  ──▶  Goldmark (GFM + footnotes)  ──▶  HTML body
 
 Both pipelines share the same render code, so the PDF and the preview are produced from the same HTML. The preview re-paginates in place using a double-buffered swap inside the iframe — the new pages are built in a hidden sibling element and atomically swapped in, which is why edits don't flash or jump.
 
+## Roadmap
+
+Rough list of things on the horizon. Open to ideas — file an issue if any of these would matter to you.
+
+- **First-class figure syntax.** Today figures (image + caption + attribution) need raw `<figure>` / `<figcaption>` HTML, which is verbose and out of place in a Markdown document. A shorthand like `![alt](path "caption")` extending into a real figure, or a fenced block syntax, would make this a one-liner.
+- **Auto-generated figure index.** Once figures are first-class, a `{{.Figures}}` table-of-figures (numbering, captions, page references) the theme can render somewhere — same idea as a table of contents.
+- **`mdoc import` to round-trip `.mdoc` bundles** back into a working directory.
+- **More built-in themes** beyond `plain` — at least a contract/letter style and an article style.
+
 ## License
 
 MIT — see `LICENSE`.
