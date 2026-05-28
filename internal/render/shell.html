@@ -51,10 +51,53 @@
             // Sequence counter so overlapping calls discard stale results
             // instead of fighting over the visible DOM.
             let seq = 0;
+            // Only the preview iframe needs viewport-fit scaling. The
+            // print pipeline loads this same shell.html in a top-level
+            // headless tab whose default viewport (800px) is narrower
+            // than an A4 page (~794px), so applying zoom there would
+            // shrink the captured PDF by a few percent.
+            const inPreview = window !== window.top;
+
+            // Natural (un-zoomed) width of a page in px, computed once per
+            // paginate so resize handling doesn't have to round-trip through
+            // a zoom reset to re-measure.
+            let pageNaturalWidth = 0;
+
+            // Fit the rendered pages to the viewport: shrink the body via
+            // CSS zoom when the page is wider than the available width,
+            // leave it alone when it fits. Using zoom (not transform:scale)
+            // means layout follows the visual size — no phantom scrollbars
+            // or empty gaps where the un-scaled box used to be.
+            function fitToViewport() {
+                if (!inPreview) return;
+                if (!pageNaturalWidth) {
+                    const page = target.querySelector(".pagedjs_page");
+                    if (!page) return;
+                    // Make sure measurement isn't being skewed by an
+                    // existing zoom from a previous fit.
+                    document.body.style.zoom = "";
+                    pageNaturalWidth = page.getBoundingClientRect().width;
+                }
+                const gutter = 24; // breathing room on each side
+                const avail = window.innerWidth - gutter * 2;
+                const scale = Math.min(1, avail / pageNaturalWidth);
+                document.body.style.zoom = scale === 1 ? "" : String(scale);
+            }
+
+            if (inPreview) {
+                window.addEventListener("resize", () => {
+                    // requestAnimationFrame coalesces the burst of resize
+                    // events the browser fires while the user drags a window.
+                    requestAnimationFrame(fitToViewport);
+                });
+            }
 
             async function paginate(html) {
                 const mySeq = ++seq;
                 const scrollY = window.scrollY;
+                // Page geometry may have changed (different @page size,
+                // new theme); force a fresh measurement on the next fit.
+                pageNaturalWidth = 0;
 
                 const staging = document.createElement("div");
                 staging.innerHTML = html;
@@ -128,6 +171,11 @@
                 target = newTarget;
                 activeSheets = sheetURLs;
                 oldSheets.forEach(u => URL.revokeObjectURL(u));
+
+                // Re-apply the viewport fit now that real pages are in
+                // the DOM and measurable. Done in rAF so layout has
+                // settled before we read offsetWidth.
+                requestAnimationFrame(fitToViewport);
 
                 // Only restore scroll if the browser clamped it because
                 // the new document is shorter (or content shifted enough
