@@ -49,7 +49,7 @@ One-shot render to PDF. Output goes next to the source as `<basename>.pdf` unles
 Opens a chromeless Chromium window with the document. The server watches the document and its resolved theme for changes; on save it pushes a reload signal and the iframe re-paginates in place (scroll position preserved).
 
 ```
--p, --port <n>   preview server port (default 3141, 0 picks a free one)
+-p, --port <n>   preview server port (default 7768, 0 picks a free one)
 ```
 
 ### `mdoc install`

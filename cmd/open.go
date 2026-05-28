@@ -81,7 +81,7 @@ var openCmd = &cobra.Command{
 }
 
 func init() {
-	openCmd.Flags().IntVarP(&openPort, "port", "p", 3141, "Preview server port (0 = pick a free port)")
+	openCmd.Flags().IntVarP(&openPort, "port", "p", 7768, "Preview server port (0 = pick a free port)")
 	rootCmd.AddCommand(openCmd)
 }
 
