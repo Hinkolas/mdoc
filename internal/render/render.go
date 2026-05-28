@@ -36,6 +36,7 @@ type ThemeData struct {
 	Title  string
 	Author string
 	Tags   []string
+	Page   document.Page
 	Data   map[string]any
 	Body   htmltmpl.HTML
 	System SystemData
@@ -141,6 +142,7 @@ func themeData(doc *document.Document, opts Options) ThemeData {
 		Title:  doc.Config.Title,
 		Author: doc.Config.Author,
 		Tags:   doc.Config.Tags,
+		Page:   doc.Config.Page,
 		Data:   doc.Config.Data,
 		System: SystemData{
 			Date:    now.Format("02 January 2006"),

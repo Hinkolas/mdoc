@@ -6,8 +6,8 @@
        avoid hints, and orphan/widow control. */
 
     @page {
-        size: A4;
-        margin: 25mm 22mm 28mm 22mm;
+        size: {{or .Page.Size "A4"}};
+        margin: {{or .Page.Margin "25mm 22mm 28mm 22mm"}};
         @bottom-center {
             content: counter(page);
             font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;

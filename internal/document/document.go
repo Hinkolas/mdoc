@@ -18,7 +18,18 @@ type Config struct {
 	Title  string         `yaml:"title"`
 	Author string         `yaml:"author"`
 	Tags   []string       `yaml:"tags"`
+	Page   Page           `yaml:"page"`
 	Data   map[string]any `yaml:"data"`
+}
+
+// Page mirrors the relevant parts of CSS @page. Both fields are passed
+// through verbatim into the theme's @page rule, so anything CSS accepts
+// (named sizes like "A4" / "Letter", explicit "210mm 297mm", "A4 landscape",
+// the four-value margin shorthand, etc.) is valid. Themes provide the
+// fallback when a field is empty.
+type Page struct {
+	Size   string `yaml:"size"`
+	Margin string `yaml:"margin"`
 }
 
 // Default is applied when a file has no frontmatter or its frontmatter does not
@@ -29,6 +40,7 @@ var Default = Config{
 	Title:  "Untitled",
 	Author: "Anonymous",
 	Tags:   []string{},
+	Page:   Page{},
 	Data:   map[string]any{},
 }
 
