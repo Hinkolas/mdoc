@@ -40,7 +40,25 @@ func (b *Browser) Close() {
 
 // Headless starts a headless Chromium with a single blank page.
 func Headless() (*Browser, error) {
-	return launch(launcherOpts{Headless: true})
+	binPath, err := ResolveBinary()
+	if err != nil {
+		return nil, err
+	}
+	l := launcher.New().Bin(binPath).Headless(true)
+	ctrlURL, err := l.Launch()
+	if err != nil {
+		return nil, fmt.Errorf("launch chromium: %w", err)
+	}
+	br := rod.New().ControlURL(ctrlURL)
+	if err := br.Connect(); err != nil {
+		return nil, fmt.Errorf("connect to chromium: %w", err)
+	}
+	page, err := br.Page(proto.TargetCreateTarget{URL: ""})
+	if err != nil {
+		_ = br.Close()
+		return nil, fmt.Errorf("create initial page: %w", err)
+	}
+	return &Browser{browser: br, page: page}, nil
 }
 
 // AppMode starts Chromium in chromeless --app=<url> mode (no tab strip,
@@ -49,43 +67,27 @@ func AppMode(url string) (*Browser, error) {
 	if url == "" {
 		return nil, fmt.Errorf("AppMode requires a URL")
 	}
-	return launch(launcherOpts{Headless: false, AppURL: url})
-}
-
-type launcherOpts struct {
-	Headless bool
-	AppURL   string
-}
-
-func launch(opts launcherOpts) (*Browser, error) {
 	binPath, err := ResolveBinary()
 	if err != nil {
 		return nil, err
 	}
-
-	l := launcher.New().Bin(binPath).Headless(opts.Headless)
-	if opts.AppURL != "" {
-		// Chromium's --app=<url> flag is what creates the chromeless window.
-		l = l.Set("app", opts.AppURL)
-	}
-
+	// NewAppMode is the go-rod preset that knows the magic flag dance:
+	// it deletes "no-startup-window" (which the plain launcher sets by
+	// default and which suppresses the --app window from ever opening)
+	// and disables the automation banner.
+	l := launcher.NewAppMode(url).Bin(binPath)
 	ctrlURL, err := l.Launch()
 	if err != nil {
 		return nil, fmt.Errorf("launch chromium: %w", err)
 	}
-
 	br := rod.New().ControlURL(ctrlURL)
 	if err := br.Connect(); err != nil {
 		return nil, fmt.Errorf("connect to chromium: %w", err)
 	}
-
-	page, err := br.Page(proto.TargetCreateTarget{URL: ""})
-	if err != nil {
-		_ = br.Close()
-		return nil, fmt.Errorf("create initial page: %w", err)
-	}
-
-	return &Browser{browser: br, page: page}, nil
+	// In app mode chromium has already opened the window pointed at the
+	// URL; don't create a second page (that would surface as a plain
+	// about:blank window alongside the app one).
+	return &Browser{browser: br}, nil
 }
 
 // ResolveBinary returns the chromium binary path: prefers the packaged copy
