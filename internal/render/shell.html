@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}}</title>
+    <base href="{{.BaseHref}}" />
+    {{.HeadInject}}
+    <link rel="stylesheet" href="{{.VendorBase}}/katex/katex.min.css" />
+    <script src="{{.VendorBase}}/paged.min.js"></script>
+    <script src="{{.VendorBase}}/katex/katex.min.js"></script>
+    <script src="{{.VendorBase}}/katex/auto-render.min.js"></script>
+</head>
+<body>
+    <template id="mdoc-source">{{.ThemedHTML}}</template>
+    <div id="mdoc-pages"></div>
+    <script>
+        window.__mdocPagedDone = (async () => {
+            const tpl = document.getElementById("mdoc-source");
+            const target = document.getElementById("mdoc-pages");
+            // Materialize the source so KaTeX can scan it before paged.js
+            // computes per-page box sizes.
+            const staging = document.createElement("div");
+            staging.appendChild(tpl.content.cloneNode(true));
+            if (window.renderMathInElement) {
+                renderMathInElement(staging, {
+                    delimiters: [
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true },
+                        { left: "$$", right: "$$", display: true },
+                    ],
+                    throwOnError: false,
+                });
+            }
+            const previewer = new PagedModule.Previewer();
+            await previewer.preview(staging.innerHTML, [], target);
+            return true;
+        })();
+    </script>
+</body>
+</html>

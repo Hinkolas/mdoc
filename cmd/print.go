@@ -1,59 +1,48 @@
 package cmd
 
 import (
-	_ "embed"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/hinkolas/mdoc/src/core"
 	"github.com/spf13/cobra"
+
+	"github.com/hinkolas/mdoc/internal/document"
+	"github.com/hinkolas/mdoc/internal/print"
+	"github.com/hinkolas/mdoc/internal/theme"
 )
 
-func init() {
-	rootCmd.AddCommand(printCmd)
-
-	// Print Command Flags
-	printCmd.Flags().StringP("config", "c", "", "Path to config file")
-	printCmd.Flags().StringP("output", "o", "", "Path of the output file")
-	printCmd.Flags().Bool("html", false, "Also export the raw HTML file alongside the PDF")
-}
+var (
+	printOutput  string
+	printHTMLOut bool
+)
 
 var printCmd = &cobra.Command{
-	Use:   "print [file]",
-	Short: "Generates a PDF from the provided markdown document.",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		var inputPath string
-
-		// Determine input file path
-		if len(args) > 0 {
-			inputPath = args[0]
-		} else {
-			fmt.Println("No input file provided")
-			os.Exit(1)
-		}
-
-		document, err := core.OpenDocument(inputPath)
+	Use:   "print <file>",
+	Short: "Render a markdown document to PDF.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		doc, err := document.Open(args[0])
 		if err != nil {
-			fmt.Println("Error opening document:", err)
-			os.Exit(1)
+			return err
 		}
-
-		// Determine output file path
-		base := filepath.Base(inputPath)
-		ext := filepath.Ext(base)
-		outputPath := strings.TrimSuffix(base, ext) + ".pdf"
-
-		// Save document to output file
-		err = document.Print(outputPath)
+		thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
 		if err != nil {
-			fmt.Println("Error rendering document:", err)
-			os.Exit(1)
+			return err
 		}
-
-		os.Exit(0)
-
+		out, err := print.Print(doc, thm, print.Options{
+			OutputPath: printOutput,
+			WriteHTML:  printHTMLOut,
+			Version:    Version,
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Println(out)
+		return nil
 	},
+}
+
+func init() {
+	printCmd.Flags().StringVarP(&printOutput, "output", "o", "", "Output PDF path (default: <input>.pdf)")
+	printCmd.Flags().BoolVar(&printHTMLOut, "html", false, "Also write the rendered HTML alongside the PDF")
+	rootCmd.AddCommand(printCmd)
 }

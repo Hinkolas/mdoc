@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}} — mdoc</title>
+    <link rel="stylesheet" href="/_/ui/preview.css" />
+    <link rel="stylesheet" href="/_/vendor/katex/katex.min.css" />
+    <script src="/_/vendor/paged.polyfill.min.js" defer></script>
+    <script src="/_/vendor/katex/katex.min.js" defer></script>
+    <script src="/_/vendor/katex/auto-render.min.js" defer></script>
+    <script src="/_/ui/preview.js" defer></script>
+</head>
+
+<body class="aside-collapsed">
+    <header>
+        <span class="title">{{.Title}}</span>
+        <nav>
+            <button id="btn-reload" title="Re-render from disk">Reload</button>
+            <button id="btn-print" title="Download PDF">Print</button>
+            <button id="btn-sidebar" title="Toggle sidebar">Sidebar</button>
+        </nav>
+    </header>
+    <main id="preview" aria-live="polite"></main>
+    <aside id="sidepanel"></aside>
+    <div id="status" hidden></div>
+</body>
+
+</html>
