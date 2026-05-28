@@ -86,24 +86,8 @@ func init() {
 }
 
 // printStartupBanner writes the small Vite-style block that introduces the
-// preview session — version, URL, document, theme. Colors are applied only
-// when stdout is a terminal so piping to a file stays clean.
-func printStartupBanner(version, url, docPath, themeName string) {
-	isTTY := false
-	if fi, err := os.Stdout.Stat(); err == nil {
-		isTTY = (fi.Mode() & os.ModeCharDevice) != 0
-	}
-	style := func(code, text string) string {
-		if !isTTY {
-			return text
-		}
-		return "\033[" + code + "m" + text + "\033[0m"
-	}
-	bold := func(s string) string { return style("1", s) }
-	dim := func(s string) string { return style("2", s) }
-	cyan := func(s string) string { return style("36", s) }
-	underline := func(s string) string { return style("4;36", s) }
-
+// preview session — version, URL, document, theme.
+func printStartupBanner(_, url, docPath, themeName string) {
 	// Show paths relative to the user's cwd when possible — shorter and
 	// usually what the user typed.
 	display := docPath
@@ -113,18 +97,10 @@ func printStartupBanner(version, url, docPath, themeName string) {
 		}
 	}
 
-	const labelWidth = 10
-	row := func(label, value string) {
-		pad := strings.Repeat(" ", labelWidth-len(label))
-		fmt.Printf("  %s  %s%s%s\n", cyan("➜"), dim(label), pad, value)
-	}
-
-	fmt.Println()
-	fmt.Printf("  %s  %s\n", bold("mdoc"), dim("v"+version))
-	fmt.Println()
-	row("preview", underline(url))
-	row("document", display)
-	row("theme", themeName)
+	printBrandHeader()
+	printRow(10, "preview", underline(url))
+	printRow(10, "document", display)
+	printRow(10, "theme", themeName)
 	fmt.Println()
 	fmt.Printf("  %s\n\n", dim("press ctrl+c to stop"))
 }
