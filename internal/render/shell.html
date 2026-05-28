@@ -10,6 +10,31 @@
     <script src="{{.VendorBase}}/paged.min.js"></script>
     <script src="{{.VendorBase}}/katex/katex.min.js"></script>
     <script src="{{.VendorBase}}/katex/auto-render.min.js"></script>
+    <style>
+        /* Viewer chrome for on-screen preview. Wrapped in @media screen so
+           none of it affects the PDF — Chromium's printToPDF emulates print
+           media, under which these rules go away and each .pagedjs_page is
+           captured as its own clean PDF page (PreferCSSPageSize honors the
+           @page sizes the theme defined). */
+        @media screen {
+            html, body {
+                margin: 0;
+                padding: 0;
+                background: #2b2e34;
+            }
+            .pagedjs_pages {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+                padding: 24px 0;
+            }
+            .pagedjs_page {
+                background: #ffffff;
+                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+            }
+        }
+    </style>
 </head>
 <body>
     <template id="mdoc-source">{{.ThemedHTML}}</template>
