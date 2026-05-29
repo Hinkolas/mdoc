@@ -61,6 +61,26 @@ func printRow(labelWidth int, label, value string) {
 // directory collapsed to "~". Consistent everywhere — see paths.Display.
 func displayPath(p string) string { return paths.Display(p) }
 
+// The live-log helpers below print Vite-style timestamped event lines while a
+// preview session is running, e.g.:
+//
+//	10:24:14  reloaded  ~/Github/mdoc/example/document.md
+//	10:24:14  warning   theme "test" not found in …; using the built-in "system" theme
+//
+// Lines are flush-left (the indented banner is the header; the log is the
+// stream) with the label column padded so details align. They go to stderr so
+// stdout stays clean for any piped path output.
+func logTime() string { return time.Now().Format("15:04:05") }
+
+func logEvent(label string, color func(string) string, detail string) {
+	fmt.Fprintf(os.Stderr, "%s  %s  %s\n", dim(logTime()), color(fmt.Sprintf("%-8s", label)), detail)
+}
+
+func logReload(detail string) { logEvent("reloaded", cyan, dim(detail)) }
+func logReady(detail string)  { logEvent("ready", green, dim(detail)) }
+func logLiveWarn(msg string)  { logEvent("warning", yellow, msg) }
+func logLiveErr(msg string)   { logEvent("error", red, msg) }
+
 // humanSize formats a byte count as "267 KB", "1.4 MB", etc. — the kind
 // of unit a user actually cares about for a generated artifact.
 func humanSize(n int64) string {

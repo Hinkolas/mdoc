@@ -123,15 +123,21 @@ func (s *Server) setThemeWarning(err error) {
 	s.mu.Unlock()
 }
 
-// CurrentThemePath returns the resolved theme file path of the current
-// document, or "" when the document falls back to the built-in theme (or
-// can't be read). Used by the file watcher to follow the active theme file.
-func (s *Server) CurrentThemePath() string {
+// CurrentTheme re-resolves the current document's theme and reports what the
+// watcher and live logger need: the resolved theme file path ("" for a
+// built-in, so the file watch is dropped), the current non-fatal theme
+// warning ("" when the theme is fine), and docErr — set when the document
+// itself can't be read or parsed (which is fatal for rendering, unlike a
+// theme problem).
+func (s *Server) CurrentTheme() (path, warning, docErr string) {
 	_, thm, err := s.resolve()
 	if err != nil {
-		return ""
+		return "", "", err.Error()
 	}
-	return thm.Path
+	s.mu.RLock()
+	warning = s.themeWarning
+	s.mu.RUnlock()
+	return thm.Path, warning, ""
 }
 
 // handleStatus reports the latest non-fatal preview diagnostic — currently

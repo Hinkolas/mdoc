@@ -12,10 +12,11 @@ import (
 )
 
 // Watcher watches a set of files and invokes onChange (debounced) when any
-// of them is written.
+// of them is written. onChange receives the path of the file whose change
+// triggered the (debounced) fire, so callers can log what reloaded.
 type Watcher struct {
 	w        *fsnotify.Watcher
-	onChange func()
+	onChange func(changed string)
 
 	mu        sync.Mutex
 	themePath string // the single active theme file, updated via WatchTheme
@@ -25,7 +26,7 @@ type Watcher struct {
 // exist (e.g. a themes/ directory the project never created) is skipped
 // silently — it's a normal, expected case, not an error. Other Add failures
 // are logged but non-fatal.
-func NewWatcher(onChange func(), paths ...string) (*Watcher, error) {
+func NewWatcher(onChange func(changed string), paths ...string) (*Watcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -77,9 +78,10 @@ func (w *Watcher) WatchTheme(path string) {
 func (w *Watcher) Run() {
 	const debounce = 100 * time.Millisecond
 	var pending *time.Timer
+	var lastPath string // the file from the most recent qualifying event
 	fire := func() {
 		if w.onChange != nil {
-			w.onChange()
+			w.onChange(lastPath)
 		}
 	}
 	for {
@@ -91,6 +93,7 @@ func (w *Watcher) Run() {
 			if ev.Op&(fsnotify.Write|fsnotify.Create) == 0 {
 				continue
 			}
+			lastPath = ev.Name
 			if pending != nil {
 				pending.Stop()
 			}

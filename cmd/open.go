@@ -15,7 +15,10 @@ import (
 	"github.com/hinkolas/mdoc/internal/theme"
 )
 
-var openPort int
+var (
+	openPort    int
+	openVerbose bool
+)
 
 var openCmd = &cobra.Command{
 	Use:   "open <file>",
@@ -44,12 +47,41 @@ var openCmd = &cobra.Command{
 		// which is re-pointed on every change since the active theme can move
 		// around the session. The watcher is referenced from its own callback,
 		// so declare it first and assign before Run starts firing.
+		//
+		// The callback also drives the live, Vite-style terminal log: every
+		// change prints a reload line, and theme diagnostics are surfaced as
+		// they happen (not just at startup) — deduped against lastWarning so a
+		// steady error isn't reprinted on every keystroke.
+		lastWarning := ""
+		if twarn != nil {
+			lastWarning = twarn.Error()
+		}
 		watchPaths := append([]string{doc.Path}, theme.SearchDirs(doc.Dir)...)
 		var watcher *preview.Watcher
-		watcher, err = preview.NewWatcher(func() {
-			watcher.WatchTheme(srv.CurrentThemePath())
+		watcher, err = preview.NewWatcher(func(changed string) {
+			themePath, warning, docErr := srv.CurrentTheme()
+			watcher.WatchTheme(themePath)
 			if err := srv.PushReload(); err != nil {
 				fmt.Fprintln(os.Stderr, "reload:", err)
+			}
+			// The preview UI already shows reload state and theme warnings, so
+			// the terminal log is opt-in via --verbose.
+			if !openVerbose {
+				return
+			}
+			if docErr != "" {
+				logLiveErr(docErr)
+				return
+			}
+			logReload(displayPath(changed))
+			if warning != lastWarning {
+				switch {
+				case warning != "":
+					logLiveWarn(warning)
+				case lastWarning != "":
+					logReady("theme resolved")
+				}
+				lastWarning = warning
 			}
 		}, watchPaths...)
 		if err != nil {
@@ -60,8 +92,11 @@ var openCmd = &cobra.Command{
 		go watcher.Run()
 
 		printStartupBanner(Version, srv.URL(), doc.Path)
-		if twarn != nil {
-			printWarn(twarn.Error())
+		// With --verbose, surface an initial theme problem as the first
+		// live-log line so it reads as part of the same stream; otherwise stay
+		// quiet and let the preview UI report it.
+		if twarn != nil && openVerbose {
+			logLiveWarn(twarn.Error())
 		}
 
 		br, err := browser.AppMode(srv.URL())
@@ -94,6 +129,7 @@ var openCmd = &cobra.Command{
 
 func init() {
 	openCmd.Flags().IntVarP(&openPort, "port", "p", 7768, "Preview server port (0 = pick a free port)")
+	openCmd.Flags().BoolVar(&openVerbose, "verbose", false, "Stream reload and theme-diagnostic logs to the terminal")
 	rootCmd.AddCommand(openCmd)
 }
 
