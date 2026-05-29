@@ -29,6 +29,19 @@ type Result struct {
 	Entries []string
 }
 
+// ResolveOutputPath returns the absolute path Export will write to: the
+// explicit outputPath when given, otherwise <source-basename>.mdoc next to
+// the document. Exposed so callers can check for an existing file before
+// committing to a bundle.
+func ResolveOutputPath(doc *document.Document, outputPath string) (string, error) {
+	if outputPath == "" {
+		base := filepath.Base(doc.Path)
+		ext := filepath.Ext(base)
+		outputPath = filepath.Join(filepath.Dir(doc.Path), base[:len(base)-len(ext)]+".mdoc")
+	}
+	return filepath.Abs(outputPath)
+}
+
 // Export packs the document, its resolved theme, and the conventional
 // assets/ sibling directory (if present) into a .mdoc zip. The bundle is
 // laid out so that unzipping it yields a directory mdoc can open
@@ -39,13 +52,7 @@ type Result struct {
 //	├── themes/<name>.html
 //	└── assets/...
 func Export(doc *document.Document, thm *theme.Theme, opts Options) (*Result, error) {
-	outPath := opts.OutputPath
-	if outPath == "" {
-		base := filepath.Base(doc.Path)
-		ext := filepath.Ext(base)
-		outPath = filepath.Join(filepath.Dir(doc.Path), base[:len(base)-len(ext)]+".mdoc")
-	}
-	absOut, err := filepath.Abs(outPath)
+	absOut, err := ResolveOutputPath(doc, opts.OutputPath)
 	if err != nil {
 		return nil, fmt.Errorf("resolve output path: %w", err)
 	}

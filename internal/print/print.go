@@ -34,16 +34,23 @@ type Options struct {
 	Version string
 }
 
+// ResolveOutputPath returns the absolute path Print will write to: the
+// explicit outputPath when given, otherwise <source-basename>.pdf next to
+// the document. Exposed so callers can check for an existing file before
+// committing to a render.
+func ResolveOutputPath(doc *document.Document, outputPath string) (string, error) {
+	if outputPath == "" {
+		base := filepath.Base(doc.Path)
+		ext := filepath.Ext(base)
+		outputPath = filepath.Join(filepath.Dir(doc.Path), base[:len(base)-len(ext)]+".pdf")
+	}
+	return filepath.Abs(outputPath)
+}
+
 // Print renders a document to PDF and writes it to disk. Returns the
 // absolute path of the resulting PDF.
 func Print(doc *document.Document, thm *theme.Theme, opts Options) (string, error) {
-	outPath := opts.OutputPath
-	if outPath == "" {
-		base := filepath.Base(doc.Path)
-		ext := filepath.Ext(base)
-		outPath = filepath.Join(filepath.Dir(doc.Path), base[:len(base)-len(ext)]+".pdf")
-	}
-	absOut, err := filepath.Abs(outPath)
+	absOut, err := ResolveOutputPath(doc, opts.OutputPath)
 	if err != nil {
 		return "", fmt.Errorf("resolve output path: %w", err)
 	}
