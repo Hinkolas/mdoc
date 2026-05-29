@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/go-rod/rod/lib/proto"
@@ -104,14 +102,7 @@ func init() {
 // shown: it can be changed live during the session, so a fixed banner value
 // would go stale (and theme problems are reported as warnings instead).
 func printStartupBanner(_, url, docPath string) {
-	// Show paths relative to the user's cwd when possible — shorter and
-	// usually what the user typed.
-	display := docPath
-	if cwd, err := os.Getwd(); err == nil {
-		if rel, err := filepath.Rel(cwd, docPath); err == nil && !strings.HasPrefix(rel, "..") {
-			display = rel
-		}
-	}
+	display := displayPath(docPath)
 
 	printBrandHeader()
 	printRow(10, "preview", underline(url))

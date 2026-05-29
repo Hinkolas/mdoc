@@ -52,8 +52,8 @@ func init() {
 }
 
 func printExportBanner(srcPath string, res *bundle.Result, dur time.Duration) {
-	src := relToCwd(srcPath)
-	dst := relToCwd(res.OutputPath)
+	src := displayPath(srcPath)
+	dst := displayPath(res.OutputPath)
 
 	size := ""
 	if fi, err := os.Stat(res.OutputPath); err == nil {

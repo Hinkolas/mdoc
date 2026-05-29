@@ -87,7 +87,7 @@ func Resolve(name, searchProjectDir string) (*Theme, error) {
 		}
 		tmpl, err := template.ParseFiles(candidate)
 		if err != nil {
-			return Default(), fmt.Errorf("theme %q failed to parse (%s): %w; using the built-in %q theme", name, candidate, err, DefaultName)
+			return Default(), fmt.Errorf("theme %q failed to parse (%s): %w; using the built-in %q theme", name, paths.Display(candidate), err, DefaultName)
 		}
 		return &Theme{Name: name, Path: candidate, Template: tmpl}, nil
 	}
@@ -97,7 +97,12 @@ func Resolve(name, searchProjectDir string) (*Theme, error) {
 		return thm, nil
 	}
 
-	return Default(), fmt.Errorf("theme %q not found in %s; using the built-in %q theme", name, strings.Join(SearchDirs(searchProjectDir), ", "), DefaultName)
+	dirs := SearchDirs(searchProjectDir)
+	shown := make([]string, len(dirs))
+	for i, d := range dirs {
+		shown[i] = paths.Display(d)
+	}
+	return Default(), fmt.Errorf("theme %q not found in %s; using the built-in %q theme", name, strings.Join(shown, ", "), DefaultName)
 }
 
 // SearchDirs returns the directories searched for theme files, in order:

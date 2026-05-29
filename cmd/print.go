@@ -60,8 +60,8 @@ func init() {
 }
 
 func printPrintBanner(srcPath, outPath string, dur time.Duration) {
-	src := relToCwd(srcPath)
-	dst := relToCwd(outPath)
+	src := displayPath(srcPath)
+	dst := displayPath(outPath)
 
 	size := ""
 	if fi, err := os.Stat(outPath); err == nil {

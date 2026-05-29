@@ -3,9 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/hinkolas/mdoc/internal/paths"
 )
 
 // stdoutIsTTY reports whether stdout is attached to a terminal. Set once
@@ -56,20 +57,9 @@ func printRow(labelWidth int, label, value string) {
 	fmt.Printf("  %s  %s%s%s\n", cyan("➜"), dim(label), pad, value)
 }
 
-// relToCwd returns a path made relative to the current working directory
-// when that's shorter and stays inside the cwd subtree; otherwise the
-// absolute path is returned unchanged.
-func relToCwd(p string) string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return p
-	}
-	rel, err := filepath.Rel(cwd, p)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return p
-	}
-	return rel
-}
+// displayPath formats a path for the banners: absolute, with the home
+// directory collapsed to "~". Consistent everywhere — see paths.Display.
+func displayPath(p string) string { return paths.Display(p) }
 
 // humanSize formats a byte count as "267 KB", "1.4 MB", etc. — the kind
 // of unit a user actually cares about for a generated artifact.
