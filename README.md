@@ -177,4 +177,15 @@ Rough list of things on the horizon. Open to ideas — file an issue if any of t
 
 ## License
 
-MIT — see `LICENSE`.
+mdoc is licensed under the MIT License — see `LICENSE`.
+
+### Third-party software
+
+mdoc bundles and links third-party components. Their full license texts and
+attributions are collected under [`licenses/`](licenses/) and ship inside the
+release archives alongside the binary:
+
+- **Embedded into the binary** (web assets): [paged.js](https://pagedjs.org) (MIT), [KaTeX](https://katex.org) (MIT), and the [KaTeX fonts](https://github.com/KaTeX/katex-fonts) (MIT) — see [`licenses/web/`](licenses/web/).
+- **Compiled into the binary** (Go modules): a mix of MIT, BSD-2-Clause, BSD-3-Clause, and Apache-2.0 — see [`licenses/go/`](licenses/go/).
+
+The Go dependency notices are generated with `scripts/gen-licenses.sh`.
