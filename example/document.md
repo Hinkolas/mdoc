@@ -1,6 +1,6 @@
 ---
 mdoc: true
-theme: plain
+theme: system
 paginate: true
 title: "The Entropy of a Software Project"
 author: "Nicholas Hinke"
