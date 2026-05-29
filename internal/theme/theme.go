@@ -26,6 +26,26 @@ type Theme struct {
 	Template *template.Template
 }
 
+// Fallback is the non-fatal diagnostic Resolve returns when it had to use the
+// built-in default theme instead of the requested one. It implements error, so
+// callers that only print err.Error() keep working (they get the full Detail);
+// callers that want a terse, structured summary can type-assert and read the
+// fields or call Short.
+type Fallback struct {
+	Requested string // theme name the document asked for
+	Used      string // built-in theme used instead (DefaultName)
+	Reason    string // terse reason, e.g. "not found" or "failed to parse"
+	Detail    string // full human message, including searched locations
+}
+
+func (f *Fallback) Error() string { return f.Detail }
+
+// Short returns a one-line summary suitable for a status banner, e.g.
+// `"test" not found, fell back to "system"`.
+func (f *Fallback) Short() string {
+	return fmt.Sprintf("%q %s, fell back to %q", f.Requested, f.Reason, f.Used)
+}
+
 //go:embed system.html
 var systemHTML string
 
@@ -87,7 +107,12 @@ func Resolve(name, searchProjectDir string) (*Theme, error) {
 		}
 		tmpl, err := template.ParseFiles(candidate)
 		if err != nil {
-			return Default(), fmt.Errorf("theme %q failed to parse (%s): %w; using the built-in %q theme", name, paths.Display(candidate), err, DefaultName)
+			return Default(), &Fallback{
+				Requested: name,
+				Used:      DefaultName,
+				Reason:    "failed to parse",
+				Detail:    fmt.Sprintf("theme %q failed to parse (%s): %v; using the built-in %q theme", name, paths.Display(candidate), err, DefaultName),
+			}
 		}
 		return &Theme{Name: name, Path: candidate, Template: tmpl}, nil
 	}
@@ -102,7 +127,12 @@ func Resolve(name, searchProjectDir string) (*Theme, error) {
 	for i, d := range dirs {
 		shown[i] = paths.Display(d)
 	}
-	return Default(), fmt.Errorf("theme %q not found in %s; using the built-in %q theme", name, strings.Join(shown, ", "), DefaultName)
+	return Default(), &Fallback{
+		Requested: name,
+		Used:      DefaultName,
+		Reason:    "not found",
+		Detail:    fmt.Sprintf("theme %q not found in %s; using the built-in %q theme", name, strings.Join(shown, ", "), DefaultName),
+	}
 }
 
 // SearchDirs returns the directories searched for theme files, in order:

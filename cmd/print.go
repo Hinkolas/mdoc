@@ -27,9 +27,6 @@ var printCmd = &cobra.Command{
 			return err
 		}
 		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
-		if twarn != nil {
-			printWarn(twarn.Error())
-		}
 		start := time.Now()
 		out, err := print.Print(doc, thm, print.Options{
 			OutputPath: printOutput,
@@ -43,12 +40,17 @@ var printCmd = &cobra.Command{
 
 		// In a pipe, just emit the absolute path on stdout so scripts can
 		// chain commands like `mdoc print foo.md | xargs open`. In a TTY
-		// the path doesn't go to stdout — only the banner does.
+		// the path doesn't go to stdout — only the banner does. A theme
+		// fallback is folded into the banner in a TTY; in a pipe it goes to
+		// stderr (full detail) so it neither pollutes stdout nor is lost.
 		if !stdoutIsTTY {
 			fmt.Println(out)
+			if twarn != nil {
+				printWarn(twarn.Error())
+			}
 			return nil
 		}
-		printPrintBanner(doc.Path, out, dur)
+		printPrintBanner(doc.Path, out, dur, twarn)
 		return nil
 	},
 }
@@ -59,7 +61,7 @@ func init() {
 	rootCmd.AddCommand(printCmd)
 }
 
-func printPrintBanner(srcPath, outPath string, dur time.Duration) {
+func printPrintBanner(srcPath, outPath string, dur time.Duration, themeWarn error) {
 	src := displayPath(srcPath)
 	dst := displayPath(outPath)
 
@@ -78,6 +80,12 @@ func printPrintBanner(srcPath, outPath string, dur time.Duration) {
 	printBrandHeader()
 	printRow(8, "source", src)
 	printRow(8, "output", dst+meta)
+	// On a theme fallback, slot a concise warning row into the banner.
+	if fb, ok := themeWarn.(*theme.Fallback); ok {
+		printRowMarked(yellow("⚠"), 8, "theme", fb.Short())
+	} else if themeWarn != nil {
+		printRowMarked(yellow("⚠"), 8, "theme", themeWarn.Error())
+	}
 	fmt.Println()
 }
 

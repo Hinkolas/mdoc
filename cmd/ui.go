@@ -53,8 +53,15 @@ func printBrandHeader() {
 // printRow prints "  ➜  label<pad>value" with the arrow accent and a
 // dimmed label. labelWidth pads the label column so multiple rows line up.
 func printRow(labelWidth int, label, value string) {
+	printRowMarked(cyan("➜"), labelWidth, label, value)
+}
+
+// printRowMarked is printRow with a custom leading marker — e.g. a yellow ⚠
+// for a warning row — so a diagnostic can sit inside the banner block and
+// still line up with the arrow rows.
+func printRowMarked(marker string, labelWidth int, label, value string) {
 	pad := strings.Repeat(" ", labelWidth-len(label))
-	fmt.Printf("  %s  %s%s%s\n", cyan("➜"), dim(label), pad, value)
+	fmt.Printf("  %s  %s%s%s\n", marker, dim(label), pad, value)
 }
 
 // displayPath formats a path for the banners: absolute, with the home
