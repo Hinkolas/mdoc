@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/term"
 
 	"github.com/hinkolas/mdoc/internal/paths"
 )
@@ -12,13 +16,52 @@ import (
 // stdoutIsTTY reports whether stdout is attached to a terminal. Set once
 // at init so all the styling helpers can cheaply skip ANSI escapes when
 // the user is piping output to a file.
-var stdoutIsTTY = func() bool {
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
+var stdoutIsTTY = isTTY(os.Stdout)
+
+// stdinIsTTY reports whether stdin is attached to a terminal — i.e. whether
+// there's a human we can ask an interactive question of.
+var stdinIsTTY = isTTY(os.Stdin)
+
+func isTTY(f *os.File) bool {
+	return term.IsTerminal(int(f.Fd()))
+}
+
+// confirmOverwrite decides whether a command may write to outPath when it
+// might already exist. With force it always may. Otherwise, if the file is
+// already there, it asks on an interactive terminal and refuses outright
+// when there's no TTY to ask on — so a script never silently clobbers an
+// existing artifact. Returns whether to proceed.
+func confirmOverwrite(outPath string, force bool) (bool, error) {
+	if force {
+		return true, nil
 	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
-}()
+	if _, err := os.Stat(outPath); err != nil {
+		// Doesn't exist (or can't be stat'd) — nothing to confirm; let the
+		// write itself surface any real error.
+		return true, nil
+	}
+	if !stdinIsTTY {
+		return false, fmt.Errorf("%s already exists; pass --force to overwrite", displayPath(outPath))
+	}
+	fmt.Fprintf(os.Stderr, "%s %s already exists. Overwrite? %s ",
+		yellow("?"), bold(displayPath(outPath)), dim("[y/N]"))
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// printCancelled notes that the user declined an overwrite and the existing
+// file was left untouched.
+func printCancelled(outPath string) {
+	fmt.Fprintf(os.Stderr, "%s cancelled — %s left unchanged\n", red("✗"), displayPath(outPath))
+}
 
 func ansi(code, text string) string {
 	if !stdoutIsTTY {

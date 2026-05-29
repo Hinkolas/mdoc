@@ -12,7 +12,10 @@ import (
 	"github.com/hinkolas/mdoc/internal/theme"
 )
 
-var exportOutput string
+var (
+	exportOutput string
+	exportForce  bool
+)
 
 var exportCmd = &cobra.Command{
 	Use:   "export <file>",
@@ -23,10 +26,23 @@ var exportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		outPath, err := bundle.ResolveOutputPath(doc, exportOutput)
+		if err != nil {
+			return err
+		}
+		proceed, err := confirmOverwrite(outPath, exportForce)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			printCancelled(outPath)
+			return nil
+		}
+
 		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
 
 		start := time.Now()
-		res, err := bundle.Export(doc, thm, bundle.Options{OutputPath: exportOutput})
+		res, err := bundle.Export(doc, thm, bundle.Options{OutputPath: outPath})
 		if err != nil {
 			return err
 		}
@@ -50,6 +66,7 @@ var exportCmd = &cobra.Command{
 
 func init() {
 	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Output bundle path (default: <input>.mdoc)")
+	exportCmd.Flags().BoolVarP(&exportForce, "force", "f", false, "Overwrite the output file if it already exists")
 	rootCmd.AddCommand(exportCmd)
 }
 

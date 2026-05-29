@@ -15,6 +15,7 @@ import (
 var (
 	printOutput  string
 	printHTMLOut bool
+	printForce   bool
 )
 
 var printCmd = &cobra.Command{
@@ -26,10 +27,23 @@ var printCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		outPath, err := print.ResolveOutputPath(doc, printOutput)
+		if err != nil {
+			return err
+		}
+		proceed, err := confirmOverwrite(outPath, printForce)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			printCancelled(outPath)
+			return nil
+		}
+
 		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
 		start := time.Now()
 		out, err := print.Print(doc, thm, print.Options{
-			OutputPath: printOutput,
+			OutputPath: outPath,
 			WriteHTML:  printHTMLOut,
 			Version:    Version,
 		})
@@ -58,6 +72,7 @@ var printCmd = &cobra.Command{
 func init() {
 	printCmd.Flags().StringVarP(&printOutput, "output", "o", "", "Output PDF path (default: <input>.pdf)")
 	printCmd.Flags().BoolVar(&printHTMLOut, "html", false, "Also write the rendered HTML alongside the PDF")
+	printCmd.Flags().BoolVarP(&printForce, "force", "f", false, "Overwrite the output file if it already exists")
 	rootCmd.AddCommand(printCmd)
 }
 
