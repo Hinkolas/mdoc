@@ -31,7 +31,15 @@ func dim(s string) string       { return ansi("2", s) }
 func cyan(s string) string      { return ansi("36", s) }
 func green(s string) string     { return ansi("32", s) }
 func red(s string) string       { return ansi("31", s) }
+func yellow(s string) string    { return ansi("33", s) }
 func underline(s string) string { return ansi("4;36", s) }
+
+// printWarn writes a non-fatal warning to stderr. Used for things the user
+// should know about but that don't stop the command — e.g. a named theme
+// that couldn't be found, where rendering falls back to the built-in default.
+func printWarn(msg string) {
+	fmt.Fprintf(os.Stderr, "  %s %s\n", yellow("warning:"), msg)
+}
 
 // printBrandHeader prints the "  mdoc  v0.1.0" line surrounded by blank
 // lines that every command shares as its header.

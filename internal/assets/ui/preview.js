@@ -22,6 +22,23 @@
         }
     }
 
+    // Pull the latest server-side diagnostic (currently the theme warning)
+    // and reflect it in the status pill. A live warning — e.g. the document
+    // names a theme that doesn't exist — is shown persistently until it's
+    // resolved; otherwise we just flash "Ready". Called on every iframe load
+    // and after each repaint so it tracks frontmatter/theme edits.
+    async function refreshStatus() {
+        try {
+            const res = await fetch("/status", { cache: "no-store" });
+            if (!res.ok) { setStatus("Ready", "ok", 1200); return; }
+            const data = await res.json();
+            if (data.warning) setStatus(data.warning, "warn");
+            else setStatus("Ready", "ok", 1200);
+        } catch (_) {
+            setStatus("Ready", "ok", 1200);
+        }
+    }
+
     // Are the iframe document and its __mdocPaginate function ready? We
     // need both before we can do an in-place re-paginate; until they're
     // there we fall back to a full iframe reload.
@@ -45,7 +62,7 @@
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const html = await res.text();
             await frame.contentWindow.__mdocPaginate(html);
-            setStatus("Ready", "ok", 1200);
+            await refreshStatus();
         } catch (err) {
             console.error("repaint failed", err);
             setStatus("Reload failed: " + err.message, "err", 4000);
@@ -61,7 +78,7 @@
     }
 
     frame.addEventListener("load", () => {
-        setStatus("Ready", "ok", 1200);
+        refreshStatus();
     });
 
     let ws = null;

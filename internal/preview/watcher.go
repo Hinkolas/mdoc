@@ -1,7 +1,11 @@
 package preview
 
 import (
+	"errors"
+	"io/fs"
 	"log"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -12,11 +16,15 @@ import (
 type Watcher struct {
 	w        *fsnotify.Watcher
 	onChange func()
+
+	mu        sync.Mutex
+	themePath string // the single active theme file, updated via WatchTheme
 }
 
-// NewWatcher creates a watcher and adds each given path. Missing paths are
-// skipped with a warning rather than treated as fatal — themes may be
-// inlined into the document, in which case there's nothing to watch.
+// NewWatcher creates a watcher and adds each given path. A path that doesn't
+// exist (e.g. a themes/ directory the project never created) is skipped
+// silently — it's a normal, expected case, not an error. Other Add failures
+// are logged but non-fatal.
 func NewWatcher(onChange func(), paths ...string) (*Watcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -26,11 +34,42 @@ func NewWatcher(onChange func(), paths ...string) (*Watcher, error) {
 		if p == "" {
 			continue
 		}
+		if _, statErr := os.Stat(p); errors.Is(statErr, fs.ErrNotExist) {
+			continue
+		}
 		if err := w.Add(p); err != nil {
 			log.Printf("watch %s: %v", p, err)
 		}
 	}
 	return &Watcher{w: w, onChange: onChange}, nil
+}
+
+// WatchTheme follows the document's active theme file for content edits.
+// The active theme can change mid-session (the user edits the frontmatter, or
+// fixes a previously-missing theme), so this is called on every reload to keep
+// the watch pointed at the right file. Passing "" — which is what the built-in
+// default theme resolves to — just drops the previous theme watch.
+//
+// Theme directories are watched separately and statically (see NewWatcher) so
+// that creating or switching theme files is noticed even on platforms where a
+// directory watch doesn't report writes to existing files.
+func (w *Watcher) WatchTheme(path string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if path == w.themePath {
+		return
+	}
+	if w.themePath != "" {
+		_ = w.w.Remove(w.themePath)
+	}
+	if path != "" {
+		if err := w.w.Add(path); err != nil {
+			log.Printf("watch theme %s: %v", path, err)
+			w.themePath = ""
+			return
+		}
+	}
+	w.themePath = path
 }
 
 // Run blocks until Close is called. A 100ms debounce coalesces editor

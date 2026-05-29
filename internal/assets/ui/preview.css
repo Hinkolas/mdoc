@@ -141,6 +141,7 @@ iframe#frame {
     display: flex;
     align-items: center;
     gap: 8px;
+    max-width: min(520px, calc(100vw - 28px));
     opacity: 0;
     transform: translateY(4px);
     transition: opacity 160ms ease, transform 160ms ease;

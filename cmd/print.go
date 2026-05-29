@@ -26,9 +26,9 @@ var printCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
-		if err != nil {
-			return err
+		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
+		if twarn != nil {
+			printWarn(twarn.Error())
 		}
 		start := time.Now()
 		out, err := print.Print(doc, thm, print.Options{

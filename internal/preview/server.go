@@ -31,11 +31,12 @@ type Server struct {
 	docPath string
 	version string
 
-	mu      sync.RWMutex
-	conn    *websocket.Conn
-	send    chan []byte
-	httpSrv *http.Server
-	port    int
+	mu           sync.RWMutex
+	conn         *websocket.Conn
+	send         chan []byte
+	httpSrv      *http.Server
+	port         int
+	themeWarning string // last non-fatal theme diagnostic, surfaced via /status
 }
 
 // New returns a server for the given document. The document is re-read from
@@ -68,6 +69,7 @@ func (s *Server) Start(port int) error {
 	r.HandleFunc("/preview/body", s.handlePreviewBody).Methods("GET")
 	r.HandleFunc("/ws", s.handleWebSocket)
 	r.HandleFunc("/print", s.handlePrint).Methods("POST")
+	r.HandleFunc("/status", s.handleStatus).Methods("GET")
 	r.HandleFunc("/open-url", s.handleOpenURL).Methods("POST")
 	r.PathPrefix("/_/ui/").Handler(http.StripPrefix("/_/ui/", http.FileServer(http.FS(assets.UI()))))
 	r.PathPrefix("/_/vendor/").Handler(http.StripPrefix("/_/vendor/", http.FileServer(http.FS(assets.Vendor()))))
@@ -96,18 +98,52 @@ func (s *Server) PushReload() error {
 	return s.sendMessage(message{Event: "reload"})
 }
 
-// CurrentThemePath returns the resolved theme path of the current document.
-// Used by callers to wire up a file watcher on it.
-func (s *Server) CurrentThemePath() (string, error) {
+// resolve re-reads the document from disk and resolves its theme, recording
+// the (non-fatal) theme diagnostic so /status can report it. A non-nil error
+// means the document itself couldn't be read or parsed — that's fatal for the
+// request; a missing/broken theme is not, since Resolve falls back to the
+// built-in default and reports it via the warning instead.
+func (s *Server) resolve() (*document.Document, *theme.Theme, error) {
 	doc, err := document.Open(s.docPath)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	thm, warn := theme.Resolve(doc.Config.Theme, doc.Dir)
+	s.setThemeWarning(warn)
+	return doc, thm, nil
+}
+
+func (s *Server) setThemeWarning(err error) {
+	msg := ""
 	if err != nil {
-		return "", err
+		msg = err.Error()
 	}
-	return thm.Path, nil
+	s.mu.Lock()
+	s.themeWarning = msg
+	s.mu.Unlock()
+}
+
+// CurrentThemePath returns the resolved theme file path of the current
+// document, or "" when the document falls back to the built-in theme (or
+// can't be read). Used by the file watcher to follow the active theme file.
+func (s *Server) CurrentThemePath() string {
+	_, thm, err := s.resolve()
+	if err != nil {
+		return ""
+	}
+	return thm.Path
+}
+
+// handleStatus reports the latest non-fatal preview diagnostic — currently
+// just the theme warning — so the SPA can show it without parsing the
+// rendered HTML.
+func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
+	s.mu.RLock()
+	warn := s.themeWarning
+	s.mu.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(map[string]string{"warning": warn})
 }
 
 // handleIndex serves the preview SPA chrome (header + iframe).
@@ -135,12 +171,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 // path the print pipeline uses, so the iframe's paged.js layout matches the
 // PDF exactly.
 func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
-	doc, err := document.Open(s.docPath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	doc, thm, err := s.resolve()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -166,12 +197,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
 // rules and other styles ride along inside <style> tags; the in-iframe
 // paginate function extracts them and feeds them to paged.js's Polisher.
 func (s *Server) handlePreviewBody(w http.ResponseWriter, _ *http.Request) {
-	doc, err := document.Open(s.docPath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	doc, thm, err := s.resolve()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -191,12 +217,7 @@ func (s *Server) handlePreviewBody(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handlePrint(w http.ResponseWriter, _ *http.Request) {
-	doc, err := document.Open(s.docPath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	thm, err := theme.Resolve(doc.Config.Theme, doc.Dir)
+	doc, thm, err := s.resolve()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

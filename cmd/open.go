@@ -14,6 +14,7 @@ import (
 	"github.com/hinkolas/mdoc/internal/browser"
 	"github.com/hinkolas/mdoc/internal/document"
 	"github.com/hinkolas/mdoc/internal/preview"
+	"github.com/hinkolas/mdoc/internal/theme"
 )
 
 var openPort int
@@ -25,12 +26,14 @@ var openCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		docPath := args[0]
 
-		// Parse once up front so we fail fast on bad frontmatter / missing
-		// theme rather than after opening a browser window.
+		// Parse once up front so we fail fast on bad frontmatter rather than
+		// after opening a browser window. A missing/broken theme is NOT fatal —
+		// Resolve falls back to the built-in default and reports a warning.
 		doc, err := document.Open(docPath)
 		if err != nil {
 			return err
 		}
+		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
 
 		srv := preview.New(doc.Path, Version)
 		if err := srv.Start(openPort); err != nil {
@@ -38,19 +41,30 @@ var openCmd = &cobra.Command{
 		}
 		defer srv.Shutdown()
 
-		themePath, _ := srv.CurrentThemePath()
-		watcher, err := preview.NewWatcher(func() {
+		// Watch the document and the theme search directories — so a theme
+		// being created or switched is noticed — plus the active theme file,
+		// which is re-pointed on every change since the active theme can move
+		// around the session. The watcher is referenced from its own callback,
+		// so declare it first and assign before Run starts firing.
+		watchPaths := append([]string{doc.Path}, theme.SearchDirs(doc.Dir)...)
+		var watcher *preview.Watcher
+		watcher, err = preview.NewWatcher(func() {
+			watcher.WatchTheme(srv.CurrentThemePath())
 			if err := srv.PushReload(); err != nil {
 				fmt.Fprintln(os.Stderr, "reload:", err)
 			}
-		}, doc.Path, themePath)
+		}, watchPaths...)
 		if err != nil {
 			return err
 		}
 		defer watcher.Close()
+		watcher.WatchTheme(thm.Path)
 		go watcher.Run()
 
-		printStartupBanner(Version, srv.URL(), doc.Path, doc.Config.Theme)
+		printStartupBanner(Version, srv.URL(), doc.Path)
+		if twarn != nil {
+			printWarn(twarn.Error())
+		}
 
 		br, err := browser.AppMode(srv.URL())
 		if err != nil {
@@ -86,8 +100,10 @@ func init() {
 }
 
 // printStartupBanner writes the small Vite-style block that introduces the
-// preview session — version, URL, document, theme.
-func printStartupBanner(_, url, docPath, themeName string) {
+// preview session — version, URL, document. The theme is deliberately not
+// shown: it can be changed live during the session, so a fixed banner value
+// would go stale (and theme problems are reported as warnings instead).
+func printStartupBanner(_, url, docPath string) {
 	// Show paths relative to the user's cwd when possible — shorter and
 	// usually what the user typed.
 	display := docPath
@@ -100,7 +116,6 @@ func printStartupBanner(_, url, docPath, themeName string) {
 	printBrandHeader()
 	printRow(10, "preview", underline(url))
 	printRow(10, "document", display)
-	printRow(10, "theme", themeName)
 	fmt.Println()
 	fmt.Printf("  %s\n\n", dim("press ctrl+c to stop"))
 }

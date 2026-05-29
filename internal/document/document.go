@@ -36,7 +36,7 @@ type Page struct {
 // opt in with `mdoc: true`.
 var Default = Config{
 	MDoc:   true,
-	Theme:  "plain",
+	Theme:  "", // empty -> built-in minimal theme; see internal/theme.Resolve
 	Title:  "Untitled",
 	Author: "Anonymous",
 	Tags:   []string{},
