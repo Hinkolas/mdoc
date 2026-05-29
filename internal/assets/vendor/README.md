@@ -9,7 +9,5 @@ the mdoc binary via `//go:embed` (see [`../assets.go`](../assets.go)).
 | `katex/katex.min.js`, `katex/katex.min.css`, `katex/auto-render.min.js` | KaTeX | MIT | https://katex.org |
 | `katex/fonts/KaTeX_*.woff2` | KaTeX fonts | MIT | https://github.com/KaTeX/katex-fonts |
 
-The exact bundled versions are recorded in each file's leading `@license` banner
-comment, which is preserved so the notice travels inside the compiled binary.
-Full license texts are kept in [`/licenses/web/`](../../../licenses/web/) and are
-shipped in the release archives.
+Each file's leading `@license` banner records the exact bundled version and is
+preserved so the notice travels inside the compiled binary.

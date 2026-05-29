@@ -29,9 +29,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
-      - NOTICE
       - README.md
-      - licenses/**/*
 
 checksum:
   name_template: "checksums.txt"
