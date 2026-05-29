@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/hinkolas/mdoc/internal/paths"
 )
 
 // Theme is a parsed theme template ready to be executed by internal/render.
@@ -99,11 +101,12 @@ func Resolve(name, searchProjectDir string) (*Theme, error) {
 }
 
 // SearchDirs returns the directories searched for theme files, in order:
-// the project-local <projectDir>/themes first, then <UserConfigDir>/mdoc/themes.
+// the project-local <projectDir>/themes first, then the user themes dir
+// (~/.config/mdoc/themes; see internal/paths).
 func SearchDirs(projectDir string) []string {
 	dirs := []string{filepath.Join(projectDir, "themes")}
-	if cfg, err := os.UserConfigDir(); err == nil {
-		dirs = append(dirs, filepath.Join(cfg, "mdoc", "themes"))
+	if userThemes, err := paths.ThemesDir(); err == nil {
+		dirs = append(dirs, userThemes)
 	}
 	return dirs
 }

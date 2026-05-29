@@ -88,7 +88,7 @@ Prepared for {{.Data.client}} by {{.Author}}.
 | Field          | Purpose                                                              |
 | -------------- | -------------------------------------------------------------------- |
 | `mdoc`         | Set to `true` to enable mdoc rendering for this file.                |
-| `theme`        | Theme name; resolved against `./themes/` then the user config dir.   |
+| `theme`        | Theme name; resolved against `./themes/`, then `~/.config/mdoc/themes/`, then a built-in (`system`/`none`). Defaults to `system`. |
 | `title`        | Document title; exposed as `{{.Title}}`.                             |
 | `author`       | Author name; exposed as `{{.Author}}`.                               |
 | `tags`         | List of tags; exposed as `{{.Tags}}`.                                |
@@ -117,7 +117,10 @@ A theme is an HTML file that wraps the rendered Markdown body. The file is proce
 Themes are resolved in this order:
 
 1. `<document_dir>/themes/<name>.html`
-2. `$XDG_CONFIG_HOME/mdoc/themes/<name>.html` (e.g. `~/Library/Application Support/mdoc/themes/...` on macOS)
+2. `~/.config/mdoc/themes/<name>.html` (override the base with `$XDG_CONFIG_HOME`)
+3. a built-in keyword: **`system`** (the styled default, used when `theme` is omitted) or **`none`** (bare rendered body, no styling)
+
+A theme file on disk overrides a built-in of the same name, so dropping a `themes/system.html` restyles every document that doesn't name a theme. A `theme:` that can't be found or won't parse falls back to `system` with a warning rather than failing.
 
 A minimal theme:
 
