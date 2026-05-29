@@ -24,9 +24,6 @@ var exportCmd = &cobra.Command{
 			return err
 		}
 		thm, twarn := theme.Resolve(doc.Config.Theme, doc.Dir)
-		if twarn != nil {
-			printWarn(twarn.Error())
-		}
 
 		start := time.Now()
 		res, err := bundle.Export(doc, thm, bundle.Options{OutputPath: exportOutput})
@@ -36,12 +33,17 @@ var exportCmd = &cobra.Command{
 		dur := time.Since(start)
 
 		// Keep stdout machine-readable in a pipe (so `mdoc export foo.md
-		// | xargs <thing>` still works); only show the banner in a tty.
+		// | xargs <thing>` still works); only show the banner in a tty. A
+		// theme fallback is folded into the banner in a TTY; in a pipe it
+		// goes to stderr (full detail) so it neither pollutes stdout nor is lost.
 		if !stdoutIsTTY {
 			fmt.Println(res.OutputPath)
+			if twarn != nil {
+				printWarn(twarn.Error())
+			}
 			return nil
 		}
-		printExportBanner(doc.Path, res, dur)
+		printExportBanner(doc.Path, res, dur, twarn)
 		return nil
 	},
 }
@@ -51,7 +53,7 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 }
 
-func printExportBanner(srcPath string, res *bundle.Result, dur time.Duration) {
+func printExportBanner(srcPath string, res *bundle.Result, dur time.Duration, themeWarn error) {
 	src := displayPath(srcPath)
 	dst := displayPath(res.OutputPath)
 
@@ -71,6 +73,12 @@ func printExportBanner(srcPath string, res *bundle.Result, dur time.Duration) {
 	printBrandHeader()
 	printRow(8, "source", src)
 	printRow(8, "bundle", dst+meta)
+	// On a theme fallback, slot a concise warning row into the banner.
+	if fb, ok := themeWarn.(*theme.Fallback); ok {
+		printRowMarked(yellow("⚠"), 8, "theme", fb.Short())
+	} else if themeWarn != nil {
+		printRowMarked(yellow("⚠"), 8, "theme", themeWarn.Error())
+	}
 	fmt.Println()
 }
 
