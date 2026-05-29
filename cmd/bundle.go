@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	exportOutput string
-	exportForce  bool
+	bundleOutput string
+	bundleForce  bool
 )
 
-var exportCmd = &cobra.Command{
-	Use:   "export <file>",
+var bundleCmd = &cobra.Command{
+	Use:   "bundle <file>",
 	Short: "Bundle a document, its theme, and its assets into a portable .mdoc zip.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -26,11 +26,11 @@ var exportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		outPath, err := bundle.ResolveOutputPath(doc, exportOutput)
+		outPath, err := bundle.ResolveOutputPath(doc, bundleOutput)
 		if err != nil {
 			return err
 		}
-		proceed, err := confirmOverwrite(outPath, exportForce)
+		proceed, err := confirmOverwrite(outPath, bundleForce)
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ var exportCmd = &cobra.Command{
 		}
 		dur := time.Since(start)
 
-		// Keep stdout machine-readable in a pipe (so `mdoc export foo.md
+		// Keep stdout machine-readable in a pipe (so `mdoc bundle foo.md
 		// | xargs <thing>` still works); only show the banner in a tty. A
 		// theme fallback is folded into the banner in a TTY; in a pipe it
 		// goes to stderr (full detail) so it neither pollutes stdout nor is lost.
@@ -59,18 +59,18 @@ var exportCmd = &cobra.Command{
 			}
 			return nil
 		}
-		printExportBanner(doc.Path, res, dur, twarn)
+		printBundleBanner(doc.Path, res, dur, twarn)
 		return nil
 	},
 }
 
 func init() {
-	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Output bundle path (default: <input>.mdoc)")
-	exportCmd.Flags().BoolVarP(&exportForce, "force", "f", false, "Overwrite the output file if it already exists")
-	rootCmd.AddCommand(exportCmd)
+	bundleCmd.Flags().StringVarP(&bundleOutput, "output", "o", "", "Output bundle path (default: <input>.mdoc)")
+	bundleCmd.Flags().BoolVarP(&bundleForce, "force", "f", false, "Overwrite the output file if it already exists")
+	rootCmd.AddCommand(bundleCmd)
 }
 
-func printExportBanner(srcPath string, res *bundle.Result, dur time.Duration, themeWarn error) {
+func printBundleBanner(srcPath string, res *bundle.Result, dur time.Duration, themeWarn error) {
 	src := displayPath(srcPath)
 	dst := displayPath(res.OutputPath)
 
