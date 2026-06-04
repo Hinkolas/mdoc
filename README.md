@@ -141,6 +141,87 @@ The `{{or .Page.Size "A4"}}` pattern lets the document override the page size fr
 
 A more complete reference theme lives at `example/themes/plain.html` — serif body, sans-serif headings, page numbers in the bottom margin (suppressed on the first page), and sensible defaults for tables, code, blockquotes, and task lists.
 
+## Generated content: contents, numbering, bibliography
+
+mdoc builds a table of contents, section numbers, and a bibliography from the markdown itself — you don't hand-write them. Block **directives** (`:::name … :::`) mark where generated blocks go, and `[@key]` cites references declared in frontmatter.
+
+### Table of contents
+
+Put a `:::toc` where the contents should appear; mdoc collects every heading in document order and renders the list. Page numbers are filled in at print time, so they stay correct.
+
+```markdown
+# Contents
+
+:::toc
+depth: 3
+:::
+```
+
+- `depth:` — deepest heading level to include (default `3`).
+
+### Heading numbering
+
+Section numbers (`1`, `1.1`, `A.1`) are **off by default** so ordinary documents don't get number prefixes. Turn them on in frontmatter; they then appear in the headings *and* the TOC from one source:
+
+```yaml
+numbering:
+  enabled: true
+```
+
+Per-heading markers (written as a trailing `{…}`, no extra config):
+
+| Marker | Effect |
+| --- | --- |
+| `## Title {.unnumbered}` | no section number (still listed in the TOC) |
+| `## Title {.notoc}` | excluded from the TOC |
+| `# Anhang {.appendix}` | this and following top-level headings number as `A`, `B`, … |
+| `## Title {#my-id}` | explicit anchor id (otherwise auto-slugged, with `ä→ae`, `ß→ss`, …) |
+
+### Citations and bibliography
+
+Declare references in frontmatter, cite them inline with `[@key]`, and place the list with `:::bibliography`. Citations are numbered by first appearance; only cited references are listed.
+
+```yaml
+references:
+  - key: lanze1982
+    author: "Lanze, Werner"
+    title: "Das technische Manuskript"
+    year: "1982"
+    publisher: "Vulkan-Verlag"
+  - key: site
+    text: "Raw, hand-formatted entry, emitted verbatim (may contain HTML)."
+```
+
+```markdown
+… a point made by Lanze [@lanze1982] …
+
+# References
+
+:::bibliography
+:::
+```
+
+Each reference takes `author`, `title`, `year`, `publisher`, `edition`, `isbn`, `url`, or a raw `text:` escape-hatch used verbatim. Richer citation styles (CSL) are future work.
+
+### Theme CSS classes
+
+Generated blocks emit a stable, `mdoc-`-prefixed class contract for themes to style. Page numbers are **not** emitted — a theme adds them via paged.js `target-counter`.
+
+| Block | HTML structure |
+| --- | --- |
+| TOC | `<nav class="mdoc-toc">` › `<a class="mdoc-toc-entry" data-level="N" href="#id">` › `<span class="mdoc-toc-num">` + `<span class="mdoc-toc-text">` |
+| Section number | `<span class="mdoc-secnum">2.1</span>` as the heading's first child |
+| Citation | `<a class="mdoc-cite" href="#mdoc-ref-KEY">[1]</a>` — unresolved: `<span class="mdoc-cite mdoc-cite-unresolved">[?]</span>` |
+| Bibliography | `<ol class="mdoc-bib">` › `<li class="mdoc-bib-entry" id="mdoc-ref-KEY">` › `<span class="mdoc-bib-label">[1]</span>` + `<span class="mdoc-bib-text">` |
+
+TOC page numbers, added in the theme:
+
+```css
+.mdoc-toc-entry::after { content: target-counter(attr(href), page); }
+```
+
+`example/thesis/` is a full worked example: cover page, numbered chapters, a generated TOC, `[@key]` citations with a bibliography, and lettered appendices — with no hand-written contents or reference list in the body.
+
 ## How it works
 
 ```

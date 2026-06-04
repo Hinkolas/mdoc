@@ -13,13 +13,49 @@ import (
 
 // Config is the YAML frontmatter shape.
 type Config struct {
-	MDoc   bool           `yaml:"mdoc"`
-	Theme  string         `yaml:"theme"`
-	Title  string         `yaml:"title"`
-	Author string         `yaml:"author"`
-	Tags   []string       `yaml:"tags"`
-	Page   Page           `yaml:"page"`
-	Data   map[string]any `yaml:"data"`
+	MDoc       bool           `yaml:"mdoc"`
+	Theme      string         `yaml:"theme"`
+	Title      string         `yaml:"title"`
+	Author     string         `yaml:"author"`
+	Tags       []string       `yaml:"tags"`
+	Page       Page           `yaml:"page"`
+	Data       map[string]any `yaml:"data"`
+	References []Reference    `yaml:"references"`
+	Numbering  Numbering      `yaml:"numbering"`
+}
+
+// Reference is one bibliography entry. Cited from the body with `[@<key>]` and
+// listed by a `:::bibliography` directive. If Text is set it is used verbatim
+// (the raw escape-hatch); otherwise the structured fields are assembled by the
+// renderer. Both `key` and `id` name the citation key.
+type Reference struct {
+	Key       string `yaml:"key"`
+	ID        string `yaml:"id"`
+	Author    string `yaml:"author"`
+	Title     string `yaml:"title"`
+	Year      string `yaml:"year"`
+	Publisher string `yaml:"publisher"`
+	Edition   string `yaml:"edition"`
+	ISBN      string `yaml:"isbn"`
+	URL       string `yaml:"url"`
+	Text      string `yaml:"text"`
+}
+
+// CiteKey is the key a `[@…]` citation matches against (`key`, or `id` as an
+// alias).
+func (r Reference) CiteKey() string {
+	if r.Key != "" {
+		return r.Key
+	}
+	return r.ID
+}
+
+// Numbering configures automatic heading numbering. It is off by default so
+// ordinary documents don't get "1", "1.1" prefixes; thesis/report documents
+// opt in with `numbering: {enabled: true}`. A `:::toc` works either way (entries
+// just carry no number when numbering is off).
+type Numbering struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // Page mirrors the relevant parts of CSS @page. Both fields are passed

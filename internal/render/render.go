@@ -13,6 +13,7 @@ import (
 	texttmpl "text/template"
 
 	"github.com/hinkolas/mdoc/internal/document"
+	"github.com/hinkolas/mdoc/internal/mdext"
 	"github.com/hinkolas/mdoc/internal/theme"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -86,14 +87,30 @@ func RenderThemed(doc *document.Document, thm *theme.Theme, opts Options) (strin
 		return "", td, fmt.Errorf("execute body template: %w", err)
 	}
 
-	// 2. Markdown -> HTML.
+	// 2. Markdown -> HTML. The mdext extension adds section numbering, the
+	//    :::toc / :::bibliography directives, and [@key] citations from the
+	//    document's frontmatter. It is built per render so it sees this
+	//    document's references and numbering config.
 	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Footnote),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		goldmark.WithExtensions(
+			extension.GFM,
+			extension.Footnote,
+			mdext.New(mdext.Config{
+				References: doc.Config.References,
+				Numbering:  doc.Config.Numbering,
+			}),
+		),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+			parser.WithHeadingAttribute(), // {.unnumbered} / {.notoc} / {.appendix} / {#id}
+		),
 		goldmark.WithRendererOptions(html.WithUnsafe()), // themes are trusted; allow raw HTML in body
 	)
+	// A transliterating id generator keeps non-ASCII heading anchors stable
+	// (e.g. "Äußere Form" -> "aeussere-form" instead of the lossy default).
+	ctx := parser.NewContext(parser.WithIDs(mdext.NewIDs()))
 	var bodyHTML bytes.Buffer
-	if err := md.Convert(mdBuf.Bytes(), &bodyHTML); err != nil {
+	if err := md.Convert(mdBuf.Bytes(), &bodyHTML, parser.WithContext(ctx)); err != nil {
 		return "", td, fmt.Errorf("convert markdown: %w", err)
 	}
 	td.Body = htmltmpl.HTML(bodyHTML.String())
