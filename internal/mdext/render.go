@@ -23,6 +23,10 @@ func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindMatter, r.renderMatter)
 	reg.Register(KindCitation, r.renderCitation)
 	reg.Register(KindSecNum, r.renderSecNum)
+	reg.Register(KindCaptioned, r.renderCaptioned)
+	reg.Register(KindCaption, r.renderCaption)
+	reg.Register(KindCaptionLabel, r.renderCaptionLabel)
+	reg.Register(KindXref, r.renderXref)
 }
 
 func (r *nodeRenderer) renderDirective(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
@@ -35,6 +39,10 @@ func (r *nodeRenderer) renderDirective(w util.BufWriter, _ []byte, n gast.Node, 
 		r.renderTOC(w, d)
 	case "bibliography":
 		r.renderBib(w, d)
+	case "lof":
+		r.renderCaptionList(w, d, "lof")
+	case "lot":
+		r.renderCaptionList(w, d, "lot")
 	case "page":
 		// A page break; the optional arg names a theme page style.
 		_, _ = w.WriteString(`<div class="mdoc-pagebreak`)
@@ -94,6 +102,90 @@ func (r *nodeRenderer) renderBib(w util.BufWriter, d *Directive) {
 		_, _ = w.WriteString("</span></li>\n")
 	}
 	_, _ = w.WriteString("</ol>\n")
+}
+
+// renderCaptionList emits a `:::lof` / `:::lot` list (class "lof" or "lot").
+// Page numbers are left to the theme's target-counter, like the TOC.
+func (r *nodeRenderer) renderCaptionList(w util.BufWriter, d *Directive, class string) {
+	_, _ = w.WriteString(`<nav class="mdoc-` + class + "\">\n")
+	for _, e := range d.Entries {
+		_, _ = w.WriteString(`<a class="mdoc-` + class + `-entry" href="#`)
+		_, _ = w.Write(util.EscapeHTML([]byte(e.ID)))
+		_, _ = w.WriteString(`">`)
+		if e.Number != "" {
+			_, _ = w.WriteString(`<span class="mdoc-` + class + `-num">`)
+			_, _ = w.Write(util.EscapeHTML([]byte(e.Number)))
+			_, _ = w.WriteString(`</span>`)
+		}
+		_, _ = w.WriteString(`<span class="mdoc-` + class + `-text">`)
+		_, _ = w.Write(util.EscapeHTML([]byte(e.Title)))
+		_, _ = w.WriteString("</span></a>\n")
+	}
+	_, _ = w.WriteString("</nav>\n")
+}
+
+// renderCaptioned wraps a figure/table in a <figure> the theme can style and
+// number; the injected label carries the visible "Abbildung 2.1".
+func (r *nodeRenderer) renderCaptioned(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	c := n.(*Captioned)
+	if entering {
+		class := "mdoc-figure"
+		if c.Variant == "table" {
+			class = "mdoc-table"
+		}
+		_, _ = w.WriteString(`<figure class="` + class + `" id="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(c.ID)))
+		_, _ = w.WriteString("\">\n")
+	} else {
+		_, _ = w.WriteString("</figure>\n")
+	}
+	return gast.WalkContinue, nil
+}
+
+func (r *nodeRenderer) renderCaption(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	if entering {
+		_, _ = w.WriteString(`<figcaption class="mdoc-figcaption">`)
+	} else {
+		_, _ = w.WriteString("</figcaption>\n")
+	}
+	return gast.WalkContinue, nil
+}
+
+func (r *nodeRenderer) renderCaptionLabel(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	if !entering {
+		return gast.WalkContinue, nil
+	}
+	l := n.(*CaptionLabel)
+	_, _ = w.WriteString(`<span class="`)
+	_, _ = w.WriteString(l.Class)
+	_, _ = w.WriteString(`">`)
+	_, _ = w.Write(util.EscapeHTML([]byte(l.Label)))
+	_, _ = w.WriteString(`</span> `)
+	return gast.WalkSkipChildren, nil
+}
+
+// renderXref emits a cross-reference: a number link (`mdoc-xref`) or an empty
+// page link (`mdoc-pageref`) the theme fills via target-counter.
+func (r *nodeRenderer) renderXref(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	if !entering {
+		return gast.WalkContinue, nil
+	}
+	x := n.(*Xref)
+	switch {
+	case !x.Resolved:
+		_, _ = w.WriteString(`<span class="mdoc-xref mdoc-xref-unresolved">[?]</span>`)
+	case x.Mode == "page":
+		_, _ = w.WriteString(`<a class="mdoc-pageref" href="#`)
+		_, _ = w.Write(util.EscapeHTML([]byte(x.ID)))
+		_, _ = w.WriteString(`"></a>`)
+	default:
+		_, _ = w.WriteString(`<a class="mdoc-xref" href="#`)
+		_, _ = w.Write(util.EscapeHTML([]byte(x.ID)))
+		_, _ = w.WriteString(`">`)
+		_, _ = w.Write(util.EscapeHTML([]byte(x.Number)))
+		_, _ = w.WriteString(`</a>`)
+	}
+	return gast.WalkSkipChildren, nil
 }
 
 func (r *nodeRenderer) renderCitation(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {

@@ -20,6 +20,21 @@ import (
 type Config struct {
 	References []document.Reference
 	Numbering  document.Numbering
+	// Labels maps a captioned variant ("figure"/"table") to its caption word,
+	// e.g. {"figure": "Abbildung", "table": "Tabelle"}. Empty entries fall back
+	// to the English defaults.
+	Labels map[string]string
+}
+
+// label returns the caption word for a variant ("Figure"/"Table" by default).
+func (c Config) label(variant string) string {
+	if v := c.Labels[variant]; v != "" {
+		return v
+	}
+	if variant == "table" {
+		return "Table"
+	}
+	return "Figure"
 }
 
 type extender struct {

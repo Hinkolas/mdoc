@@ -5,10 +5,11 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 )
 
-// Directive is a `:::name [arg] … :::` block. The block parser fills
-// Name/Arg/Options; the AST transformer fills Headings (for name=="toc") or Bib
-// (for name=="bibliography") so the renderer can emit them without a
-// parser.Context.
+// Directive is a single-line `:::name [arg] [key=value …]` leaf block (toc,
+// bibliography, lof, lot, page, and the matter markers). The block parser fills
+// Name/Arg/Options; the AST transformer fills Headings (name=="toc"), Bib
+// (name=="bibliography"), or Entries (name=="lof"/"lot") so the renderer can
+// emit them without a parser.Context.
 type Directive struct {
 	gast.BaseBlock
 	Name     string
@@ -16,6 +17,7 @@ type Directive struct {
 	Options  map[string]string
 	Headings []HeadingEntry
 	Bib      []BibEntry
+	Entries  []CaptionEntry
 }
 
 // KindDirective is the NodeKind of a Directive node.
@@ -126,3 +128,110 @@ var matterMarkers = map[string]string{
 	"mainmatter":  "main",
 	"appendix":    "appendix",
 }
+
+// CaptionEntry is one collected figure or table, used to build a list of figures
+// (`:::lof`) or tables (`:::lot`).
+type CaptionEntry struct {
+	Number string // "2.1" / "A.1"
+	Title  string // plain caption text (falls back to the image alt)
+	ID     string
+}
+
+// Captioned is a `:::figure … :::` or `:::table … :::` block. Its body is normal
+// markdown: image-bearing paragraphs (or a table) are the media, the remaining
+// text paragraphs are the caption. The transformer numbers it, separates media
+// from caption (a Caption child), and injects the "Abbildung 2.1" label.
+type Captioned struct {
+	gast.BaseBlock
+	Variant string // "figure" | "table"
+	ID      string
+	Number  string
+	Options map[string]string
+}
+
+// KindCaptioned is the NodeKind of a Captioned node.
+var KindCaptioned = gast.NewNodeKind("Captioned")
+
+// Kind implements ast.Node.Kind.
+func (n *Captioned) Kind() gast.NodeKind { return KindCaptioned }
+
+// Dump implements ast.Node.Dump.
+func (n *Captioned) Dump(source []byte, level int) {
+	gast.DumpHelper(n, source, level, map[string]string{"Variant": n.Variant, "ID": n.ID}, nil)
+}
+
+// NewCaptioned returns a Captioned of the given variant.
+func NewCaptioned(variant string) *Captioned {
+	return &Captioned{Variant: variant, Options: map[string]string{}}
+}
+
+// Caption holds the caption of a Captioned block. It carries inline children
+// (the injected label followed by the author's rich caption text) and renders
+// as a `<figcaption>`.
+type Caption struct {
+	gast.BaseBlock
+}
+
+// KindCaption is the NodeKind of a Caption node.
+var KindCaption = gast.NewNodeKind("Caption")
+
+// Kind implements ast.Node.Kind.
+func (n *Caption) Kind() gast.NodeKind { return KindCaption }
+
+// Dump implements ast.Node.Dump.
+func (n *Caption) Dump(source []byte, level int) {
+	gast.DumpHelper(n, source, level, nil, nil)
+}
+
+// NewCaption returns an empty Caption.
+func NewCaption() *Caption { return &Caption{} }
+
+// CaptionLabel is the "Abbildung 2.1" / "Tabelle 2.1" lead injected as a
+// caption's first inline child. Class selects the per-variant CSS class. The
+// field is Label (not Text) to avoid shadowing ast.Node's Text method.
+type CaptionLabel struct {
+	gast.BaseInline
+	Label string
+	Class string
+}
+
+// KindCaptionLabel is the NodeKind of a CaptionLabel node.
+var KindCaptionLabel = gast.NewNodeKind("CaptionLabel")
+
+// Kind implements ast.Node.Kind.
+func (n *CaptionLabel) Kind() gast.NodeKind { return KindCaptionLabel }
+
+// Dump implements ast.Node.Dump.
+func (n *CaptionLabel) Dump(source []byte, level int) {
+	gast.DumpHelper(n, source, level, map[string]string{"Label": n.Label}, nil)
+}
+
+// NewCaptionLabel returns a CaptionLabel with the given text and CSS class.
+func NewCaptionLabel(label, class string) *CaptionLabel {
+	return &CaptionLabel{Label: label, Class: class}
+}
+
+// Xref is an inline cross-reference `[#id]` (the target element's number) or
+// `[#id page]` (its page number, resolved by the theme via target-counter). The
+// transformer fills Number/Resolved.
+type Xref struct {
+	gast.BaseInline
+	ID       string
+	Mode     string // "num" | "page"
+	Number   string
+	Resolved bool
+}
+
+// KindXref is the NodeKind of an Xref node.
+var KindXref = gast.NewNodeKind("Xref")
+
+// Kind implements ast.Node.Kind.
+func (n *Xref) Kind() gast.NodeKind { return KindXref }
+
+// Dump implements ast.Node.Dump.
+func (n *Xref) Dump(source []byte, level int) {
+	gast.DumpHelper(n, source, level, map[string]string{"ID": n.ID, "Mode": n.Mode}, nil)
+}
+
+// NewXref returns an Xref to the given id in the given mode ("num" | "page").
+func NewXref(id, mode string) *Xref { return &Xref{ID: id, Mode: mode} }

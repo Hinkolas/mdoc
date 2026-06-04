@@ -88,9 +88,10 @@ func RenderThemed(doc *document.Document, thm *theme.Theme, opts Options) (strin
 	}
 
 	// 2. Markdown -> HTML. The mdext extension adds section numbering, the
-	//    :::toc / :::bibliography directives, and [@key] citations from the
-	//    document's frontmatter. It is built per render so it sees this
-	//    document's references and numbering config.
+	//    :::toc / :::bibliography / :::figure / :::lof directives, [@key]
+	//    citations, and [#id] cross-references from the document's frontmatter.
+	//    It is built per render so it sees this document's references, numbering,
+	//    and caption labels.
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,
@@ -98,6 +99,7 @@ func RenderThemed(doc *document.Document, thm *theme.Theme, opts Options) (strin
 			mdext.New(mdext.Config{
 				References: doc.Config.References,
 				Numbering:  doc.Config.Numbering,
+				Labels:     doc.Config.Labels,
 			}),
 		),
 		goldmark.WithParserOptions(

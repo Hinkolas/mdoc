@@ -13,15 +13,16 @@ import (
 
 // Config is the YAML frontmatter shape.
 type Config struct {
-	MDoc       bool           `yaml:"mdoc"`
-	Theme      string         `yaml:"theme"`
-	Title      string         `yaml:"title"`
-	Author     string         `yaml:"author"`
-	Tags       []string       `yaml:"tags"`
-	Page       Page           `yaml:"page"`
-	Data       map[string]any `yaml:"data"`
-	References []Reference    `yaml:"references"`
-	Numbering  Numbering      `yaml:"numbering"`
+	MDoc       bool              `yaml:"mdoc"`
+	Theme      string            `yaml:"theme"`
+	Title      string            `yaml:"title"`
+	Author     string            `yaml:"author"`
+	Tags       []string          `yaml:"tags"`
+	Page       Page              `yaml:"page"`
+	Data       map[string]any    `yaml:"data"`
+	References []Reference       `yaml:"references"`
+	Numbering  Numbering         `yaml:"numbering"`
+	Labels     map[string]string `yaml:"labels"`
 }
 
 // Reference is one bibliography entry. Cited from the body with `[@<key>]` and

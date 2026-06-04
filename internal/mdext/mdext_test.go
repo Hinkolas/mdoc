@@ -212,3 +212,257 @@ func TestTOCDepthOption(t *testing.T) {
 	wantAll(t, got, `href="#one"`)
 	notAny(t, got, `href="#two"`) // depth 1 excludes the h2
 }
+
+func TestFigure(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-a",
+		"![Alt text](img.svg)",
+		"",
+		"Eine *reiche* Bildunterschrift.",
+		":::",
+	}, "\n"))
+
+	wantAll(t, got,
+		`<figure class="mdoc-figure" id="fig-a">`,
+		`<img src="img.svg" alt="Alt text">`, // media stays as a real image
+		`<figcaption class="mdoc-figcaption">`,
+		`<span class="mdoc-fig-label">Figure 1.1</span> `, // chapter-scoped number
+		`<em>reiche</em>`,                                 // caption keeps rich inline markup
+	)
+	// media renders before the caption for figures.
+	if strings.Index(got, "<img") > strings.Index(got, "<figcaption") {
+		t.Errorf("figure caption should follow the media:\n%s", got)
+	}
+}
+
+func TestFigureContinuousWithoutNumbering(t *testing.T) {
+	// No chapter number (numbering off) -> figures count continuously.
+	got := render(t, mdext.Config{}, strings.Join([]string{
+		":::figure #one",
+		"![](a.svg)",
+		"",
+		"First.",
+		":::",
+		"",
+		":::figure #two",
+		"![](b.svg)",
+		"",
+		"Second.",
+		":::",
+	}, "\n"))
+	wantAll(t, got,
+		`<span class="mdoc-fig-label">Figure 1</span>`,
+		`<span class="mdoc-fig-label">Figure 2</span>`,
+	)
+}
+
+func TestTable(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::table #tab-a",
+		"| A | B |",
+		"| --- | --- |",
+		"| 1 | 2 |",
+		"",
+		"Eine Tabellenunterschrift.",
+		":::",
+	}, "\n"))
+
+	wantAll(t, got,
+		`<figure class="mdoc-table" id="tab-a">`,
+		`<span class="mdoc-tab-label">Table 1.1</span> `,
+		"<table>", // the markdown table survives as media
+	)
+	// the caption sits above the table for tables.
+	if strings.Index(got, "<figcaption") > strings.Index(got, "<table>") {
+		t.Errorf("table caption should precede the table:\n%s", got)
+	}
+}
+
+func TestFigureAndTableCountersAreIndependent(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #f1",
+		"![](a.svg)",
+		"",
+		"Fig one.",
+		":::",
+		"",
+		":::table #t1",
+		"| A |",
+		"| --- |",
+		"| 1 |",
+		"",
+		"Tab one.",
+		":::",
+		"",
+		":::figure #f2",
+		"![](b.svg)",
+		"",
+		"Fig two.",
+		":::",
+	}, "\n"))
+	wantAll(t, got,
+		`<span class="mdoc-fig-label">Figure 1.1</span>`,
+		`<span class="mdoc-tab-label">Table 1.1</span>`,
+		`<span class="mdoc-fig-label">Figure 1.2</span>`,
+	)
+}
+
+func TestLOFAndLOT(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-a",
+		"![](a.svg)",
+		"",
+		"Cap A.",
+		":::",
+		"",
+		":::table #tab-a",
+		"| A |",
+		"| --- |",
+		"| 1 |",
+		"",
+		"Tab A.",
+		":::",
+		"",
+		"# Verzeichnisse {.unnumbered}",
+		"",
+		":::lof",
+		"",
+		":::lot",
+	}, "\n"))
+
+	wantAll(t, got,
+		`<nav class="mdoc-lof">`,
+		`<a class="mdoc-lof-entry" href="#fig-a"><span class="mdoc-lof-num">1.1</span><span class="mdoc-lof-text">Cap A.</span></a>`,
+		`<nav class="mdoc-lot">`,
+		`<a class="mdoc-lot-entry" href="#tab-a"><span class="mdoc-lot-num">1.1</span><span class="mdoc-lot-text">Tab A.</span></a>`,
+	)
+}
+
+func TestFigureCaptionlessAltFallback(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-a",
+		"![A lone image](a.svg)",
+		":::",
+		"",
+		":::lof",
+	}, "\n"))
+	// No caption text -> the list entry falls back to the image alt.
+	wantAll(t, got, `<span class="mdoc-lof-text">A lone image</span>`)
+}
+
+func TestSubfigures(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-pair",
+		"![links](a.svg) ![rechts](b.svg)",
+		"",
+		"Zwei Unterabbildungen.",
+		":::",
+	}, "\n"))
+	// Both images are media; the text is the caption.
+	wantAll(t, got,
+		`<img src="a.svg" alt="links">`,
+		`<img src="b.svg" alt="rechts">`,
+		`<span class="mdoc-fig-label">Figure 1.1</span> Zwei Unterabbildungen.`,
+	)
+}
+
+func TestFigureAppendixScoped(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		":::appendix",
+		"# Diagramme",
+		"",
+		":::figure #fig-x",
+		"![](a.svg)",
+		"",
+		"Im Anhang.",
+		":::",
+	}, "\n"))
+	wantAll(t, got, `<span class="mdoc-fig-label">Figure A.1</span>`)
+}
+
+func TestCustomLabels(t *testing.T) {
+	cfg := numbered()
+	cfg.Labels = map[string]string{"figure": "Abbildung", "table": "Tabelle"}
+	got := render(t, cfg, strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-a",
+		"![](a.svg)",
+		"",
+		"Bild.",
+		":::",
+	}, "\n"))
+	wantAll(t, got, `<span class="mdoc-fig-label">Abbildung 1.1</span>`)
+}
+
+func TestCrossRefNumber(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"## Aufbau",
+		"",
+		":::figure #fig-a",
+		"![](a.svg)",
+		"",
+		"Bild.",
+		":::",
+		"",
+		"Siehe Abschnitt [#aufbau] und Abbildung [#fig-a].",
+	}, "\n"))
+	wantAll(t, got,
+		`<a class="mdoc-xref" href="#aufbau">1.1</a>`,
+		`<a class="mdoc-xref" href="#fig-a">1.1</a>`,
+	)
+}
+
+func TestCrossRefPage(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"## Aufbau",
+		"",
+		"Auf Seite [#aufbau page].",
+	}, "\n"))
+	// Page references emit an empty link the theme fills via target-counter.
+	wantAll(t, got, `<a class="mdoc-pageref" href="#aufbau"></a>`)
+}
+
+func TestCrossRefUnresolved(t *testing.T) {
+	got := render(t, numbered(), "# Kapitel\n\nSee [#nope] and [#missing page].\n")
+	if strings.Count(got, `mdoc-xref-unresolved`) != 2 {
+		t.Errorf("expected two unresolved cross-references:\n%s", got)
+	}
+}
+
+func TestCrossRefDoesNotEatLinks(t *testing.T) {
+	got := render(t, mdext.Config{}, "A [#fig-a](https://example.com) link.\n")
+	wantAll(t, got, `<a href="https://example.com">#fig-a</a>`)
+	notAny(t, got, `mdoc-xref`)
+}
+
+func TestCaptionEntitiesDecodedInList(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		"# Kapitel",
+		"",
+		":::figure #fig-a",
+		"![](a.svg)",
+		"",
+		"Spannung mit 50&nbsp;Hz.",
+		":::",
+		"",
+		":::lof",
+	}, "\n"))
+	// The list entry decodes the entity instead of showing a literal "&nbsp;".
+	wantAll(t, got, "<span class=\"mdoc-lof-text\">Spannung mit 50 Hz.</span>")
+	notAny(t, got, `&amp;nbsp;`)
+}

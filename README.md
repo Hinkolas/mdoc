@@ -141,9 +141,9 @@ The `{{or .Page.Size "A4"}}` pattern lets the document override the page size fr
 
 A more complete reference theme lives at `example/themes/plain.html` — serif body, sans-serif headings, page numbers in the bottom margin (suppressed on the first page), and sensible defaults for tables, code, blockquotes, and task lists.
 
-## Generated content: contents, numbering, bibliography
+## Generated content: contents, numbering, figures, bibliography
 
-mdoc builds a table of contents, section numbers, and a bibliography from the markdown itself — you don't hand-write them. Single-line **directives** (`:::name [options]`) mark where generated blocks go and divide the document into regions; `[@key]` cites references declared in frontmatter.
+mdoc builds a table of contents, section numbers, figures and tables with their lists, and a bibliography from the markdown itself — you don't hand-write them. Single-line **directives** (`:::name [options]`) mark where generated blocks go and divide the document into regions; container directives (`:::figure … :::`) wrap a body. `[@key]` cites references declared in frontmatter and `[#id]` cross-references a numbered element.
 
 ### Document regions
 
@@ -216,6 +216,49 @@ references:
 
 Each reference takes `author`, `title`, `year`, `publisher`, `edition`, `isbn`, `url`, or a raw `text:` escape-hatch used verbatim. Richer citation styles (CSL) are future work.
 
+### Figures and tables
+
+`:::figure` and `:::table` are container directives: their markdown body holds the media (a real `![alt](src)` image, or a markdown table) and a **rich caption** — the caption is ordinary markdown, so bold, italics, links, `[@key]` citations and `[#id]` cross-references all work inside it. mdoc numbers them per chapter (`2.1`, `A.1` in the appendix), injects the `Figure 2.1` / `Table 2.1` label, and lists them from `:::lof` / `:::lot`.
+
+```markdown
+:::figure #fig-voltage
+![Voltage trace](assets/plot.svg)
+
+Harmonic voltage at **50 Hz**, see [#sec-method].
+:::
+
+:::table #tab-margins
+| Edge | Margin |
+| :--- | :----: |
+| top  | 2.5    |
+
+Required page margins.
+:::
+```
+
+- Image-only paragraphs are the media; the remaining text is the caption. Several images in one paragraph become side-by-side subfigures.
+- A figure's caption sits below the media; a table's caption sits above it.
+- `#id` is optional (one is generated for unlabelled figures); use it to cross-reference the figure.
+- Place the lists with `:::lof` (figures) and `:::lot` (tables); both fill page numbers at print time, like the TOC.
+
+The caption word is `Figure` / `Table` by default; override per language in frontmatter:
+
+```yaml
+labels:
+  figure: "Abbildung"
+  table: "Tabelle"
+```
+
+### Cross-references
+
+`[#id]` prints the number of the heading, figure or table with that id and links to it; `[#id page]` prints its page number instead (resolved by the theme at print time). You supply the surrounding noun, so it reads naturally in any language:
+
+```markdown
+… see Figure [#fig-voltage] in Section [#sec-method] on page [#sec-method page].
+```
+
+An id that resolves to no element renders as `[?]`. Headings are referenced by their auto-slug (or an explicit `{#id}`); figures/tables by their `#id`.
+
 ### Theme CSS classes
 
 Generated blocks emit a stable, `mdoc-`-prefixed class contract for themes to style. Page numbers are **not** emitted — a theme adds them via paged.js `target-counter`.
@@ -226,16 +269,22 @@ Generated blocks emit a stable, `mdoc-`-prefixed class contract for themes to st
 | Section number | `<span class="mdoc-secnum">2.1</span>` as the heading's first child |
 | Citation | `<a class="mdoc-cite" href="#mdoc-ref-KEY">[1]</a>` — unresolved: `<span class="mdoc-cite mdoc-cite-unresolved">[?]</span>` |
 | Bibliography | `<ol class="mdoc-bib">` › `<li class="mdoc-bib-entry" id="mdoc-ref-KEY">` › `<span class="mdoc-bib-label">[1]</span>` + `<span class="mdoc-bib-text">` |
+| Figure / table | `<figure class="mdoc-figure">` / `mdoc-table` › media + `<figcaption class="mdoc-figcaption">` › `<span class="mdoc-fig-label">` / `mdoc-tab-label` + caption |
+| List of figures/tables | `<nav class="mdoc-lof">` / `mdoc-lot` › `<a class="mdoc-lof-entry" href="#id">` › `<span class="mdoc-lof-num">` + `<span class="mdoc-lof-text">` |
+| Cross-reference | `<a class="mdoc-xref" href="#id">2.1</a>` — page: `<a class="mdoc-pageref" href="#id"></a>` — unresolved: `<span class="mdoc-xref mdoc-xref-unresolved">[?]</span>` |
 | Matter region | `<div class="mdoc-matter-front">` / `-main` / `-appendix` wrapping the region |
 | Page break | `<div class="mdoc-pagebreak"></div>` (optionally `mdoc-page-<style>`) |
 
-TOC page numbers, added in the theme:
+Page numbers are filled in by the theme via `target-counter` — for the TOC, the lists of figures/tables, and `[#id page]` references:
 
 ```css
-.mdoc-toc-entry::after { content: target-counter(attr(href), page); }
+.mdoc-toc-entry::after,
+.mdoc-lof-entry::after,
+.mdoc-lot-entry::after { content: target-counter(attr(href), page); }
+.mdoc-pageref::after  { content: target-counter(attr(href), page); }
 ```
 
-`example/thesis/` is a full worked example: cover page, numbered chapters, a generated TOC, `[@key]` citations with a bibliography, and lettered appendices — with no hand-written contents or reference list in the body.
+`example/thesis/` is a full worked example: cover page, numbered chapters, a generated TOC, lists of figures and tables, `:::figure` / `:::table` with rich captions, `[@key]` citations with a bibliography, `[#id]` cross-references, and lettered appendices — with no hand-written apparatus in the body.
 
 ## How it works
 
