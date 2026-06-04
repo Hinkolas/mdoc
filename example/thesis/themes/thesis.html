@@ -1,0 +1,413 @@
+<style>
+    /* ===================================================================
+       "thesis" theme — a KOMA-Script-style academic thesis / report.
+
+       Reproduces the look of a German Bachelor-/Masterarbeit: serif
+       justified body, bold sans headings, decimal section numbers,
+       running headers, ruled footer page numbers, numbered figures /
+       tables / equations, a dot-leader table of contents, and lettered
+       appendices.
+
+       Everything here is pure CSS + paged.js generated content — the
+       theme can't run document-side scripts. The paged.js features used:
+         - @page named pages + margin boxes (headers / footers)
+         - CSS counters for chapters, sections, figures, tables
+         - string-set / string() for the running chapter title
+         - target-counter() for "see page N" cross-refs and TOC page numbers
+
+       Authors structure a document with a handful of wrapper classes —
+       see thesis.md. Known gaps are written up in LIMITATIONS.md; the big
+       ones the theme had to work around are flagged inline below with
+       "GAP:".
+       =================================================================== */
+
+    /* ---- page geometry ------------------------------------------------ */
+
+    @page {
+        size: {{or .Page.Size "A4"}};
+        margin: {{or .Page.Margin "28mm 25mm 22mm 28mm"}};
+
+        /* Running header: current chapter, e.g. "2  Richtlinien …".
+           Italic, centred, hairline rule beneath. */
+        /* GAP: no running header. A running chapter title here is the one
+           reference feature that can't be done reliably from a theme — see
+           LIMITATIONS.md §"Running headers". Footer-only is clean and works. */
+
+        /* Footer: page number, centred, hairline rule above. */
+        @bottom-center {
+            content: counter(page);
+            font: 10pt/1.3 "Charter", "Source Serif Pro", Georgia, serif;
+            color: #1a1a1a;
+            vertical-align: top;
+            padding-top: 3pt;
+            border-top: 0.5pt solid #1a1a1a;
+            width: 100%;
+        }
+    }
+
+    /* Title page: nothing in the margins. */
+    @page :first {
+        @top-center    { content: none; border: none; }
+        @bottom-center { content: none; border: none; }
+    }
+
+    /* "Plain" pages — front matter (abstract, declaration) and the front
+       lists (TOC, symbols, …): footer page number, but no running header.
+       GAP: page numbering is continuous decimal throughout. A roman →
+       arabic split that restarts at 1 needs to reset the paged.js page
+       counter mid-document, which isn't honoured without a JS hook the
+       theme can't inject (see LIMITATIONS.md). */
+    @page plain {
+        @top-center { content: none; border: none; }
+    }
+
+    /* ---- base typography --------------------------------------------- */
+
+    body {
+        font-family: "Charter", "Source Serif Pro", "Iowan Old Style", Cambria, Georgia, serif;
+        font-size: 11pt;
+        line-height: 1.5;               /* 1½-fach Zeilenabstand */
+        color: #111;
+        hyphens: auto;
+        text-rendering: optimizeLegibility;
+    }
+
+    p {
+        margin: 0 0 0.65em;
+        text-align: justify;
+        orphans: 2;
+        widows: 2;
+    }
+
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+
+    a { color: inherit; text-decoration: none; }
+    /* In-text reference links keep a faint underline so they read as links
+       on screen but stay unobtrusive in print. */
+    p a[href^="#"], li a[href^="#"], dd a[href^="#"] { border-bottom: 0.4pt solid #9aa7b4; }
+    a.pageref, a.mdoc-cite { border: none !important; }
+
+    sup { line-height: 0; }
+
+    /* ---- headings & section numbering -------------------------------- */
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: "Helvetica Neue", "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        font-weight: 700;
+        color: #000;
+        line-height: 1.25;
+        break-after: avoid;
+        hyphens: none;
+    }
+
+    h1 { font-size: 17pt; margin: 0 0 1.4em; }
+    h2 { font-size: 13pt; margin: 1.8em 0 0.6em; }
+    h3 { font-size: 11.5pt; margin: 1.4em 0 0.5em; }
+    h4 { font-size: 11pt; margin: 1.2em 0 0.4em; }
+    h5, h6 { font-size: 11pt; margin: 1em 0 0.3em; }
+
+    /* Section numbers come from mdext (the :::toc / [@cite] extension): it
+       injects <span class="mdoc-secnum">2.1</span> into each numbered heading,
+       so the heading, the TOC and cross-references all share one number. The
+       chapter / figure / table CSS counters remain only to number figure and
+       table captions, which mdext does not handle in v1 (they stay in sync
+       because both count exactly the .mainmatter / .appendix chapters). */
+    .mdoc-secnum { margin-right: 0.4em; }
+
+    .mainmatter { counter-reset: chapter; }
+    .mainmatter h1 { counter-increment: chapter; counter-reset: figure table; }
+    .appendix { counter-reset: chapter; }
+    .appendix h1 { counter-increment: chapter; counter-reset: figure table; }
+
+    /* ---- page-matter wrappers & breaks ------------------------------- */
+
+    .matter-roman, .frontlists { page: plain; }
+
+    /* Each top-level division starts on a fresh page. The first heading of
+       a freshly-broken division must NOT add a second break (that produced
+       a blank page). */
+    .matter-roman > section,
+    .frontlists > section { break-before: page; }
+    .matter-roman > section:first-child,
+    .frontlists > section:first-child { break-before: avoid; }
+
+    .mainmatter, .backmatter, .appendix { break-before: page; }
+    .mainmatter h1, .appendix h1 { break-before: page; }
+    .mainmatter > h1:first-child,
+    .appendix > h1:first-child { break-before: avoid; }
+
+    .pagebreak { break-after: page; }
+
+    /* ---- title page --------------------------------------------------- */
+
+    .titlepage {
+        text-align: center;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .titlepage .tp-institution { font-size: 12pt; line-height: 1.4; margin-top: 6mm; }
+    .titlepage .tp-title {
+        font-family: "Charter", "Source Serif Pro", Georgia, serif;
+        font-size: 24pt;
+        font-weight: 400;
+        margin: 18mm 0 12mm;
+    }
+    .titlepage .tp-logo { margin: 4mm auto 10mm; }
+    .titlepage .tp-logo img { width: 62mm; height: auto; }
+    .titlepage .tp-subtitle { font-size: 14pt; line-height: 1.5; margin: 0 auto 6mm; max-width: 75%; }
+    .titlepage .tp-version { font-size: 9pt; color: #333; }
+    .titlepage .tp-spacer { flex: 1 1 auto; }
+    .titlepage .tp-meta {
+        text-align: left;
+        font-size: 11pt;
+        line-height: 1.6;
+        margin: 0 0 10mm 4mm;
+        display: grid;
+        grid-template-columns: 32mm 1fr;
+        row-gap: 6mm;
+    }
+
+    /* ---- table of contents (generated by :::toc) --------------------- */
+    /* mdext emits <nav class="mdoc-toc"> with one <a class="mdoc-toc-entry"
+       data-level="N"> per heading, holding <span class="mdoc-toc-num"> and
+       <span class="mdoc-toc-text">. The page number is added here via paged.js
+       target-counter (leader('.') is unsupported, so the dotted fill is an
+       absolutely-positioned rule masked by the opaque spans). */
+    nav.mdoc-toc { margin: 0.5em 0 1.5em; }
+    .mdoc-toc-entry {
+        display: flex;
+        align-items: flex-end;
+        position: relative;
+        color: inherit;
+        text-decoration: none;
+        border: none;
+        line-height: 1.5;
+    }
+    .mdoc-toc-num, .mdoc-toc-text { background: #fff; z-index: 1; }
+    .mdoc-toc-num  { padding-right: 2mm; }
+    .mdoc-toc-text { padding-right: 5pt; }
+    .mdoc-toc-entry::after {
+        content: target-counter(attr(href), page);
+        margin-left: auto;
+        padding-left: 5pt;
+        background: #fff;
+        z-index: 1;
+        font-variant-numeric: tabular-nums;
+    }
+    .mdoc-toc-entry::before {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: 0.28em;
+        border-bottom: 1.3pt dotted #666;
+        z-index: 0;
+    }
+    /* Indent + emphasis by heading level. Indentation uses margin (not
+       padding) so the dotted leader starts at the number, not in the gutter. */
+    .mdoc-toc-entry[data-level="1"] { font-weight: 700; margin-top: 0.7em; }
+    .mdoc-toc-entry[data-level="1"]::before { content: none; } /* no leader on chapters */
+    .mdoc-toc-entry[data-level="2"] { margin-left: 8mm; }
+    .mdoc-toc-entry[data-level="3"] { margin-left: 16mm; }
+
+    /* ---- lists of figures / tables (still hand-written; see LIMITATIONS) */
+    nav.lof, nav.lot { margin: 0.5em 0 1.5em; }
+    .lof a, .lot a {
+        display: flex;
+        align-items: flex-end;
+        position: relative;
+        color: inherit;
+        text-decoration: none;
+        border: none;
+        line-height: 1.5;
+        margin-top: 0.35em;
+    }
+    .lof a .t, .lot a .t { background: #fff; padding-right: 5pt; z-index: 1; }
+    .lof a::after, .lot a::after {
+        content: target-counter(attr(href), page);
+        margin-left: auto;
+        padding-left: 5pt;
+        background: #fff;
+        z-index: 1;
+        font-variant-numeric: tabular-nums;
+    }
+    .lof a::before, .lot a::before {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: 0.28em;
+        border-bottom: 1.3pt dotted #666;
+        z-index: 0;
+    }
+
+    /* "see page N" inline cross-reference. */
+    a.pageref::after { content: target-counter(attr(href), page); }
+
+    /* ---- symbol & abbreviation lists --------------------------------- */
+    dl.entries {
+        display: grid;
+        grid-template-columns: 26mm 1fr;
+        column-gap: 6mm;
+        row-gap: 0.9em;
+        margin: 0.5em 0 1.5em;
+    }
+    dl.entries dt { font-weight: 400; }
+    dl.entries.abbr dt { font-weight: 700; }
+    dl.entries dd { margin: 0; text-align: left; }
+
+    /* ---- figures & captions ------------------------------------------ */
+    figure { margin: 1.4em auto; text-align: center; break-inside: avoid; }
+    figure img, figure svg { max-width: 100%; height: auto; }
+
+    figcaption {
+        font-size: 9.5pt;
+        line-height: 1.4;
+        color: #1a1a1a;
+        text-align: center;
+        margin-top: 0.6em;
+        padding: 0 6mm;
+    }
+
+    /* Numbered captions: "Abbildung 2.1: …" (the number is chapter.figure).
+       The counter is incremented on the <figure> element itself — paged.js
+       ignores counter-increment on ::before. Captioned tables use a separate
+       element (.tablefig, below) and their own counter, so the two never
+       overlap; subfigures are plain divs and stay out of the figure count. */
+    .mainmatter figure, .appendix figure { counter-increment: figure; }
+    .mainmatter figure > figcaption::before,
+    .appendix figure > figcaption::before {
+        content: "Abbildung " counter(chapter) "." counter(figure) ":\00a0";
+    }
+
+    /* Side-by-side subfigures: plain divs so they stay out of the figure
+       count; the "(a)/(b)" labels are written by hand. */
+    .subfigures { display: flex; gap: 6mm; align-items: flex-start; justify-content: center; margin: 0.4em 0; }
+    .subfigures .subfig { flex: 1 1 0; text-align: center; }
+    .subfigures .subfig img, .subfigures .subfig svg { max-width: 100%; height: auto; }
+    .subcap { font-size: 9pt; line-height: 1.3; margin-top: 0.4em; }
+
+    /* ---- tables ------------------------------------------------------- */
+    /* Booktabs look: thick rule top & bottom, thin rule under the header,
+       no vertical rules. */
+    table {
+        border-collapse: collapse;
+        margin: 0.8em auto;
+        font-size: 10.5pt;
+        break-inside: avoid;
+    }
+    thead { border-top: 1.3pt solid #000; border-bottom: 0.6pt solid #000; }
+    tbody { border-bottom: 1.3pt solid #000; }
+    th, td { padding: 4pt 9pt; text-align: left; vertical-align: top; }
+    th { font-weight: 700; }
+    td p, th p { margin: 0; text-align: inherit; }
+
+    /* Captioned, numbered table: wrap the markdown table in
+       <div class="tablefig"> with a <div class="tabcaption"> first (caption
+       sits above the table, per the reference). A distinct element — not
+       <figure> — keeps it out of the figure counter. */
+    .tablefig { text-align: center; margin: 1.2em 0; break-inside: avoid; }
+    .tablefig table { margin: 0 auto; }
+    .tabcaption { font-size: 9.5pt; line-height: 1.4; text-align: center; margin: 0 0 0.5em; padding: 0 6mm; }
+    .mainmatter .tablefig, .appendix .tablefig { counter-increment: table; }
+    .mainmatter .tablefig .tabcaption::before,
+    .appendix .tablefig .tabcaption::before {
+        content: "Tabelle " counter(chapter) "." counter(table) ":\00a0";
+    }
+
+    /* ---- equations ---------------------------------------------------- */
+    /* GAP: KaTeX (via auto-render) does not auto-number equations or
+       resolve \ref. Use \tag{2.1} in the math to number by hand. */
+    .katex-display { margin: 1em 0; }
+
+    /* ---- lists -------------------------------------------------------- */
+    ul, ol { margin: 0.4em 0 0.9em; padding-left: 7mm; }
+    li { margin: 0.3em 0; text-align: justify; }
+    li::marker { color: #000; }
+    ul ul, ol ol, ul ol, ol ul { margin: 0.3em 0; }
+
+    /* GFM task lists → empty checklist squares like the reference. */
+    li:has(input[type="checkbox"]) { list-style: none; }
+    ul:has(> li > input[type="checkbox"]) { padding-left: 3mm; }
+    input[type="checkbox"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 10px;
+        height: 10px;
+        border: 1pt solid #000;
+        border-radius: 1px;
+        margin: 0 7px 0 0;
+        vertical-align: 0;
+        position: relative;
+    }
+    input[type="checkbox"]:checked::after {
+        content: "✓";
+        position: absolute;
+        top: -6px; left: 0.5px;
+        font-size: 12px;
+    }
+
+    /* ---- blockquotes (indented block citations) ---------------------- */
+    blockquote { margin: 0.8em 0 0.8em 8mm; padding: 0; color: #111; }
+    blockquote p { text-align: justify; }
+
+    /* ---- bibliography (generated by :::bibliography) ----------------- */
+    /* mdext emits <ol class="mdoc-bib"> with one <li class="mdoc-bib-entry"
+       id="mdoc-ref-KEY"> each, holding <span class="mdoc-bib-label">[1]</span>
+       and <span class="mdoc-bib-text">. Cite in text with [@KEY], which
+       renders <a class="mdoc-cite" href="#mdoc-ref-KEY">[1]</a>. */
+    ol.mdoc-bib { list-style: none; padding: 0; margin: 0.5em 0; }
+    .mdoc-bib-entry {
+        position: relative;
+        padding-left: 12mm;
+        margin: 0 0 0.8em;
+        text-align: justify;
+        font-size: 10.5pt;
+    }
+    .mdoc-bib-label { position: absolute; left: 0; width: 10mm; }
+    .mdoc-cite { white-space: nowrap; }
+    .mdoc-cite-unresolved { color: #b00; }
+
+    /* ---- code, footnotes, rules -------------------------------------- */
+    code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; }
+    pre {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 9.5pt;
+        line-height: 1.4;
+        background: #f4f5f7;
+        border: 0.5pt solid #d9dde2;
+        border-radius: 3px;
+        padding: 8pt 10pt;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        break-inside: avoid;
+        margin: 0.8em 0;
+    }
+    pre code { font-size: inherit; }
+
+    .footnotes {
+        margin-top: 2em;
+        padding-top: 0.6em;
+        border-top: 0.5pt solid #999;
+        font-size: 9.5pt;
+    }
+    .footnotes ol { padding-left: 5mm; }
+
+    hr { border: none; border-top: 0.5pt solid #bbb; margin: 1.4em 0; }
+</style>
+
+{{/* Title page — rendered by the theme from frontmatter `data`, so the cover
+     lives here instead of as raw HTML in the document body. Every line is
+     optional except the title; `$` reaches the root data inside `with`. */}}
+<div class="titlepage">
+    {{with .Data.university}}<div class="tp-institution">{{.}}{{with $.Data.faculty}}<br>{{.}}{{end}}</div>{{end}}
+    <div class="tp-title">{{.Title}}</div>
+    {{with .Data.logo}}<div class="tp-logo"><img src="{{.}}" alt="Logo"></div>{{end}}
+    {{with .Data.subtitle}}<div class="tp-subtitle">{{.}}</div>{{end}}
+    {{with .Data.version}}<div class="tp-version">{{.}}</div>{{end}}
+    <div class="tp-spacer"></div>
+    <div class="tp-meta">
+        {{with .Data.submitted}}<div class="tp-label">eingereicht:</div><div>{{.}}</div>{{end}}
+        <div class="tp-label">von:</div><div>{{.Author}}{{with .Data.birth}}<br>{{.}}{{end}}{{with .Data.birthplace}}<br>{{.}}{{end}}</div>
+    </div>
+</div>
+
+{{.Body}}
