@@ -9,6 +9,9 @@ page:
   margin: 28mm 25mm 22mm 28mm
 numbering:
   enabled: true
+labels:
+  figure: "Abbildung"
+  table: "Tabelle"
 data:
   logo: "assets/logo.svg"
   university: "Otto-von-Muster-Universität Musterstadt"
@@ -102,18 +105,13 @@ Musterstadt, den {{.Data.submitted}}
 
 # Abbildungsverzeichnis
 
-<nav class="lof">
-<a href="#fig-spannung"><span class="t">2.1&emsp;Harmonischer Zeitverlauf einer Spannung mit einer Frequenz von 50&nbsp;Hz</span></a>
-<a href="#fig-neben"><span class="t">2.2&emsp;Zwei Unterabbildungen nebeneinander</span></a>
-</nav>
+:::lof
 
 :::page
 
 # Tabellenverzeichnis
 
-<nav class="lot">
-<a href="#tab-raender"><span class="t">2.1&emsp;Einzuhaltende Seitenränder bei der Erstellung von Bachelor- und Masterarbeiten</span></a>
-</nav>
+:::lot
 
 :::mainmatter
 
@@ -121,7 +119,7 @@ Musterstadt, den {{.Data.submitted}}
 
 Die Einleitung soll den Leser mit dem behandelten Problem bekanntmachen und das
 Ziel und die Bedeutung der Arbeit aufzeigen. Weitere mögliche Inhalte einer
-Einleitung sind in Abschnitt&nbsp;2.2.1 auf Seite&nbsp;<a class="pageref" href="#einleitung-1"></a> beschrieben.
+Einleitung sind in Abschnitt&nbsp;[#einleitung-1] auf Seite&nbsp;[#einleitung-1 page] beschrieben.
 
 # Richtlinien zur Ausarbeitung
 
@@ -188,12 +186,10 @@ den man in Richtung von $a$ oder $b$ umstellen kann.
 ### Tabellen
 
 Zahlentafeln oder Zusammenstellungen von Daten in Tabellenform sind fortlaufend
-zu nummerieren und zu bezeichnen (siehe Tabelle&nbsp;2.1). Die Bezeichnung einer
+zu nummerieren und zu bezeichnen (siehe Tabelle&nbsp;[#tab-raender]). Die Bezeichnung einer
 Tabelle steht oberhalb der Tabelle.
 
-<div class="tablefig" id="tab-raender">
-<div class="tabcaption">Einzuhaltende Seitenränder bei der Erstellung von Bachelor- und Masterarbeiten</div>
-
+:::table #tab-raender
 | Position | Seitenrand (in cm) |
 | :------- | :----------------: |
 | links    | 2,5                |
@@ -201,29 +197,32 @@ Tabelle steht oberhalb der Tabelle.
 | oben     | 2,5                |
 | unten    | 2,0                |
 
-</div>
+Einzuhaltende Seitenränder bei der Erstellung von Bachelor- und Masterarbeiten
+:::
 
 ### Bilder
 
 Bilder und grafische Darstellungen aller Art sind fortlaufend zu nummerieren und
-zu bezeichnen (siehe Abbildung&nbsp;2.1). Bildunterschriften sollen
+zu bezeichnen (siehe Abbildung&nbsp;[#fig-spannung]). Bildunterschriften sollen
 selbsterklärend sein.
 
-<figure id="fig-spannung">
-<img src="assets/plot.svg" alt="Spannungsverlauf">
-<figcaption>Harmonischer Zeitverlauf einer Spannung mit einer Frequenz von 50&nbsp;Hz und einem Effektivwert von 230&nbsp;V</figcaption>
-</figure>
+:::figure #fig-spannung
+![Spannungsverlauf](assets/plot.svg)
+
+Harmonischer Zeitverlauf einer Spannung mit einer Frequenz von 50&nbsp;Hz und einem Effektivwert von 230&nbsp;V
+:::
 
 Mehrere zusammengehörige Abbildungen sollten in Unterabbildungen nebeneinander
-oder untereinander gesetzt werden (siehe Abbildung&nbsp;2.2).
+oder untereinander gesetzt werden (siehe Abbildung&nbsp;[#fig-neben]).
 
-<figure id="fig-neben">
+:::figure #fig-neben
 <div class="subfigures">
 <div class="subfig"><img src="assets/plot.svg" alt="links"><div class="subcap">(a) linke Unterabbildung</div></div>
 <div class="subfig"><img src="assets/plot.svg" alt="rechts"><div class="subcap">(b) rechte Unterabbildung</div></div>
 </div>
-<figcaption>Zwei Unterabbildungen nebeneinander</figcaption>
-</figure>
+
+Zwei Unterabbildungen nebeneinander
+:::
 
 ### Listen
 
@@ -247,8 +246,8 @@ Maßgebend ist jeweils die neueste gültige Ausgabe eines Normblattes.
 # Zusammenfassung
 
 Die Zusammenfassung ist der letzte Abschnitt des Textes und fasst die Ergebnisse
-der Arbeit zusammen (siehe auch Abschnitt&nbsp;2.2.3 auf
-Seite&nbsp;<a class="pageref" href="#zusammenfassung"></a>).
+der Arbeit zusammen (siehe auch Abschnitt&nbsp;[#zusammenfassung] auf
+Seite&nbsp;[#zusammenfassung page]).
 
 # Literaturverzeichnis {.unnumbered}
 
@@ -259,7 +258,7 @@ Seite&nbsp;<a class="pageref" href="#zusammenfassung"></a>).
 # Diagramme
 
 Mögliche Inhalte eines Anhangs sowie dessen formale Gestaltung sind in
-Abschnitt&nbsp;2.3 auf Seite&nbsp;<a class="pageref" href="#formale-gestaltung-des-berichtes"></a> näher beschrieben.
+Abschnitt&nbsp;[#formale-gestaltung-des-berichtes] auf Seite&nbsp;[#formale-gestaltung-des-berichtes page] näher beschrieben.
 
 # Software für die Benutzung des LaTeX-Textsatzsystems
 

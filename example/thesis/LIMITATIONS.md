@@ -32,6 +32,17 @@ theme hack). It closes the worst offenders:
 - **Citations + bibliography** (gap 5) — `[@key]` + a frontmatter `references:`
   list + `:::bibliography`; auto-numbered by first use, with a raw `text:`
   escape-hatch. (CSL styles / `.bib` import remain future work.)
+- **Figures + tables + their lists** (gap 3) — `:::figure` / `:::table` container
+  directives whose markdown body carries the media and a **rich caption** (bold,
+  links, `[@cite]`, `[#xref]` all work in captions); chapter-scoped auto-numbers
+  and an injected `Abbildung 2.1` / `Tabelle 2.1` label; `:::lof` / `:::lot`
+  render the lists. This replaced the hand-written `<figure>` / `.tablefig` /
+  `<nav class="lof">` markup and the CSS figure/table counters. (Native
+  sub-figure syntax is still future work — sub-figures use raw `<div>`s in the
+  `:::figure` body.)
+- **Cross-references** (gap 4) — `[#id]` prints a heading/figure/table number and
+  links to it; `[#id page]` prints its page number (theme `target-counter`).
+  This replaced the hand-typed "Abschnitt 2.2.1" and `<a class="pageref">` spans.
 - **Stable heading IDs** (gap 1) — a transliterating slugifier (`ä→ae`, `ß→ss`)
   plus `{#id}` attributes; anchors are no longer lossy.
 - **Document regions + page breaks** — `:::frontmatter` / `:::mainmatter` /
@@ -41,13 +52,14 @@ theme hack). It closes the worst offenders:
   `.appendix` / `<section>` layout divs — the body is now pure structure.
 
 See the README "Generated content" section for the syntax and the `mdoc-*` CSS
-class contract. `thesis.md` now uses all of these — there is no hand-written
-contents, reference list, or page-layout HTML left in the body.
+class contract. `thesis.md` now uses all of these — the only hand-written HTML
+left in the body is the symbol/abbreviation `<dl>` lists and the sub-figure
+layout inside one `:::figure`.
 
-**Still open** (this document's other sections still apply): lists of
-figures/tables (gap 3, still hand-written `:::`-less navs here), cross-references
-by label (gap 4), running headers (gap 7), roman→arabic page reset (gap 8),
-equation numbering (gap 9), PDF outline (gap 10).
+**Still open** (this document's other sections still apply): running headers
+(gap 7), roman→arabic page reset (gap 8), equation numbering (gap 9), PDF outline
+(gap 10), native sub-figure syntax (part of gap 3), and the symbol/abbreviation
+lists (nomenclature).
 
 ---
 
