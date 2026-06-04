@@ -39,15 +39,14 @@ references:
     isbn: "978-3834805713"
 ---
 
-<!-- The title page is rendered by the theme from the frontmatter `data`
-     fields above (logo, university, faculty, subtitle, version, submitted,
-     birth, birthplace) plus `title`/`author`. Nothing to write here. -->
+<!-- The title page is rendered by the theme from the frontmatter `data`. The
+     body is pure structure: `:::frontmatter` / `:::mainmatter` / `:::appendix`
+     switch matter (which drives numbering and the TOC); `:::page` forces a
+     break where the engine wouldn't; chapters auto-break. No layout HTML. -->
 
-<div class="matter-roman">
+:::frontmatter
 
-<section>
-
-# Kurzreferat {.unnumbered .notoc}
+# Kurzreferat
 
 Ein *Kurzreferat* ist eine prägnante Inhaltsangabe, ein Abriss ohne
 Interpretation und Wertung einer wissenschaftlichen Arbeit. Kurzreferate können
@@ -55,26 +54,22 @@ in vieler Hinsicht verwendet werden, z. B. zur Feststellung von Relevanz: Es
 soll schnell und exakt zu erkennen sein, ob das Dokument für die Fragestellung
 relevant ist und der Leser das Originaldokument noch lesen muss [@wikipedia-de].
 
-# Abstract {.unnumbered .notoc}
+# Abstract
 
 An *abstract* is a brief summary of a research article, thesis, review,
 conference proceeding or any in-depth analysis of a particular subject, and is
 often used to help the reader quickly ascertain the paper's purpose. When used,
 an abstract always appears at the beginning of a manuscript [@wikipedia-en].
 
-</section>
+:::page
 
-<section>
-
-# Text der Aufgabenstellung im Original {.unnumbered .notoc}
+# Text der Aufgabenstellung im Original
 
 *(Hier wird die im Original gestellte Aufgabenstellung eingefügt.)*
 
-</section>
+:::page
 
-<section>
-
-# Eidesstattliche Erklärung {.unnumbered .notoc}
+# Eidesstattliche Erklärung
 
 Hiermit versichere ich, die vorliegende Arbeit selbstständig und unter
 ausschließlicher Verwendung der angegebenen Literatur und Hilfsmittel erstellt
@@ -85,64 +80,42 @@ Prüfungsbehörde vorgelegt und auch nicht veröffentlicht.
 
 Musterstadt, den {{.Data.submitted}}
 
-</section>
+:::page
 
-</div>
+# Inhaltsverzeichnis
 
-<div class="matter-main">
+:::toc depth=3
 
-<div class="frontlists">
+:::page
 
-<section>
-
-# Inhaltsverzeichnis {.unnumbered .notoc}
-
-:::toc
-depth: 3
-:::
-
-</section>
-
-<section>
-
-# Symbolverzeichnis {.unnumbered .notoc}
+# Symbolverzeichnis
 
 <dl class="entries"><dt>$a,\ A$</dt><dd>Skalar, auch komplexwertig</dd><dt>$\vec{a},\ \vec{A}$</dt><dd>Vektor, auch komplexwertig</dd><dt>$\eta$</dt><dd>Wirkungsgrad</dd><dt>$\kappa$</dt><dd>Leitfähigkeit</dd></dl>
 
-</section>
+:::page
 
-<section>
-
-# Abkürzungsverzeichnis {.unnumbered .notoc}
+# Abkürzungsverzeichnis
 
 <dl class="entries abbr"><dt>DIN</dt><dd>Deutsches Institut für Normung</dd><dt>ISO</dt><dd>Internationale Organisation für Normung, engl. International Organization for Standardization</dd><dt>PDF</dt><dd>(trans)portables Dokumentenformat, engl. Portable Document Format</dd></dl>
 
-</section>
+:::page
 
-<section>
-
-# Abbildungsverzeichnis {.unnumbered .notoc}
+# Abbildungsverzeichnis
 
 <nav class="lof">
 <a href="#fig-spannung"><span class="t">2.1&emsp;Harmonischer Zeitverlauf einer Spannung mit einer Frequenz von 50&nbsp;Hz</span></a>
 <a href="#fig-neben"><span class="t">2.2&emsp;Zwei Unterabbildungen nebeneinander</span></a>
 </nav>
 
-</section>
+:::page
 
-<section>
-
-# Tabellenverzeichnis {.unnumbered .notoc}
+# Tabellenverzeichnis
 
 <nav class="lot">
 <a href="#tab-raender"><span class="t">2.1&emsp;Einzuhaltende Seitenränder bei der Erstellung von Bachelor- und Masterarbeiten</span></a>
 </nav>
 
-</section>
-
-</div>
-
-<div class="mainmatter">
+:::mainmatter
 
 # Einleitung
 
@@ -277,20 +250,13 @@ Die Zusammenfassung ist der letzte Abschnitt des Textes und fasst die Ergebnisse
 der Arbeit zusammen (siehe auch Abschnitt&nbsp;2.2.3 auf
 Seite&nbsp;<a class="pageref" href="#zusammenfassung"></a>).
 
-</div>
-
-<div class="backmatter">
-
 # Literaturverzeichnis {.unnumbered}
 
 :::bibliography
-:::
 
-</div>
+:::appendix
 
-<div class="appendix">
-
-# Diagramme {.appendix}
+# Diagramme
 
 Mögliche Inhalte eines Anhangs sowie dessen formale Gestaltung sind in
 Abschnitt&nbsp;2.3 auf Seite&nbsp;<a class="pageref" href="#formale-gestaltung-des-berichtes"></a> näher beschrieben.
@@ -319,7 +285,3 @@ leicht über den Paketmanager nachinstallieren.
 
 - [ ] jede abgesetzte Gleichung ist horizontal zentriert und fortlaufend nummeriert
 - [ ] alle Einheiten sind mit aufrechten Buchstaben geschrieben
-
-</div>
-
-</div>

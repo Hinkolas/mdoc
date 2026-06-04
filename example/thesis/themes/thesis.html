@@ -51,15 +51,10 @@
         @bottom-center { content: none; border: none; }
     }
 
-    /* "Plain" pages — front matter (abstract, declaration) and the front
-       lists (TOC, symbols, …): footer page number, but no running header.
-       GAP: page numbering is continuous decimal throughout. A roman →
-       arabic split that restarts at 1 needs to reset the paged.js page
-       counter mid-document, which isn't honoured without a JS hook the
-       theme can't inject (see LIMITATIONS.md). */
-    @page plain {
-        @top-center { content: none; border: none; }
-    }
+    /* GAP: page numbering is continuous decimal throughout. A roman → arabic
+       split that restarts at 1 needs to reset the paged.js page counter
+       mid-document, which isn't honoured without a JS hook the theme can't
+       inject (see LIMITATIONS.md). */
 
     /* ---- base typography --------------------------------------------- */
 
@@ -110,34 +105,24 @@
     /* Section numbers come from mdext (the :::toc / [@cite] extension): it
        injects <span class="mdoc-secnum">2.1</span> into each numbered heading,
        so the heading, the TOC and cross-references all share one number. The
-       chapter / figure / table CSS counters remain only to number figure and
-       table captions, which mdext does not handle in v1 (they stay in sync
-       because both count exactly the .mainmatter / .appendix chapters). */
+       chapter / figure / table CSS counters below remain only to number figure
+       and table captions, which mdext does not handle in v1; :not(.unnumbered)
+       keeps them in sync with the heading numbers. */
     .mdoc-secnum { margin-right: 0.4em; }
 
-    .mainmatter { counter-reset: chapter; }
-    .mainmatter h1 { counter-increment: chapter; counter-reset: figure table; }
-    .appendix { counter-reset: chapter; }
-    .appendix h1 { counter-increment: chapter; counter-reset: figure table; }
+    .mdoc-matter-main, .mdoc-matter-appendix { counter-reset: chapter; }
+    .mdoc-matter-main > h1:not(.unnumbered),
+    .mdoc-matter-appendix > h1:not(.unnumbered) {
+        counter-increment: chapter;
+        counter-reset: figure table;
+    }
 
-    /* ---- page-matter wrappers & breaks ------------------------------- */
-
-    .matter-roman, .frontlists { page: plain; }
-
-    /* Each top-level division starts on a fresh page. The first heading of
-       a freshly-broken division must NOT add a second break (that produced
-       a blank page). */
-    .matter-roman > section,
-    .frontlists > section { break-before: page; }
-    .matter-roman > section:first-child,
-    .frontlists > section:first-child { break-before: avoid; }
-
-    .mainmatter, .backmatter, .appendix { break-before: page; }
-    .mainmatter h1, .appendix h1 { break-before: page; }
-    .mainmatter > h1:first-child,
-    .appendix > h1:first-child { break-before: avoid; }
-
-    .pagebreak { break-after: page; }
+    /* ---- matter regions & page breaks -------------------------------- */
+    /* Regions come from :::frontmatter / :::mainmatter / :::appendix. Chapters
+       in the numbered regions start a fresh page automatically; front matter
+       breaks only where the author writes :::page (→ .mdoc-pagebreak). */
+    .mdoc-matter-main > h1, .mdoc-matter-appendix > h1 { break-before: page; }
+    .mdoc-pagebreak { break-before: page; }
 
     /* ---- title page --------------------------------------------------- */
 
@@ -272,9 +257,9 @@
        ignores counter-increment on ::before. Captioned tables use a separate
        element (.tablefig, below) and their own counter, so the two never
        overlap; subfigures are plain divs and stay out of the figure count. */
-    .mainmatter figure, .appendix figure { counter-increment: figure; }
-    .mainmatter figure > figcaption::before,
-    .appendix figure > figcaption::before {
+    .mdoc-matter-main figure, .mdoc-matter-appendix figure { counter-increment: figure; }
+    .mdoc-matter-main figure > figcaption::before,
+    .mdoc-matter-appendix figure > figcaption::before {
         content: "Abbildung " counter(chapter) "." counter(figure) ":\00a0";
     }
 
@@ -307,9 +292,9 @@
     .tablefig { text-align: center; margin: 1.2em 0; break-inside: avoid; }
     .tablefig table { margin: 0 auto; }
     .tabcaption { font-size: 9.5pt; line-height: 1.4; text-align: center; margin: 0 0 0.5em; padding: 0 6mm; }
-    .mainmatter .tablefig, .appendix .tablefig { counter-increment: table; }
-    .mainmatter .tablefig .tabcaption::before,
-    .appendix .tablefig .tabcaption::before {
+    .mdoc-matter-main .tablefig, .mdoc-matter-appendix .tablefig { counter-increment: table; }
+    .mdoc-matter-main .tablefig .tabcaption::before,
+    .mdoc-matter-appendix .tablefig .tabcaption::before {
         content: "Tabelle " counter(chapter) "." counter(table) ":\00a0";
     }
 

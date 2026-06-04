@@ -34,10 +34,15 @@ theme hack). It closes the worst offenders:
   escape-hatch. (CSL styles / `.bib` import remain future work.)
 - **Stable heading IDs** (gap 1) — a transliterating slugifier (`ä→ae`, `ß→ss`)
   plus `{#id}` attributes; anchors are no longer lossy.
+- **Document regions + page breaks** — `:::frontmatter` / `:::mainmatter` /
+  `:::appendix` markers set numbering and TOC defaults per region and emit
+  `<div class="mdoc-matter-…">` wrappers the theme breaks on; `:::page` forces a
+  break. This replaced the hand-written `.matter-roman` / `.mainmatter` /
+  `.appendix` / `<section>` layout divs — the body is now pure structure.
 
 See the README "Generated content" section for the syntax and the `mdoc-*` CSS
-class contract. `thesis.md` now uses these — there is no hand-written contents
-or reference list left in the body.
+class contract. `thesis.md` now uses all of these — there is no hand-written
+contents, reference list, or page-layout HTML left in the body.
 
 **Still open** (this document's other sections still apply): lists of
 figures/tables (gap 3, still hand-written `:::`-less navs here), cross-references
