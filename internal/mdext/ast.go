@@ -5,12 +5,14 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 )
 
-// Directive is a `:::name … :::` block. The block parser fills Name/Options;
-// the AST transformer fills Headings (for name=="toc") or Bib (for
-// name=="bibliography") so the renderer can emit them without a parser.Context.
+// Directive is a `:::name [arg] … :::` block. The block parser fills
+// Name/Arg/Options; the AST transformer fills Headings (for name=="toc") or Bib
+// (for name=="bibliography") so the renderer can emit them without a
+// parser.Context.
 type Directive struct {
 	gast.BaseBlock
 	Name     string
+	Arg      string // trailing token on the open line, e.g. `:::page cover`
 	Options  map[string]string
 	Headings []HeadingEntry
 	Bib      []BibEntry
@@ -94,3 +96,33 @@ func (n *SecNum) Dump(source []byte, level int) {
 
 // NewSecNum returns a SecNum carrying the given number text.
 func NewSecNum(num string) *SecNum { return &SecNum{Num: num} }
+
+// Matter is a document region (front matter / main matter / appendix). The
+// transformer creates it by wrapping the nodes between two matter markers
+// (`:::frontmatter` / `:::mainmatter` / `:::appendix`); it renders as a
+// `<div class="mdoc-matter-<kind>">` the theme can style and break on.
+type Matter struct {
+	gast.BaseBlock
+	Region string // "front" | "main" | "appendix"
+}
+
+// KindMatter is the NodeKind of a Matter node.
+var KindMatter = gast.NewNodeKind("Matter")
+
+// Kind implements ast.Node.Kind.
+func (n *Matter) Kind() gast.NodeKind { return KindMatter }
+
+// Dump implements ast.Node.Dump.
+func (n *Matter) Dump(source []byte, level int) {
+	gast.DumpHelper(n, source, level, map[string]string{"Region": n.Region}, nil)
+}
+
+// NewMatter returns a Matter region of the given kind.
+func NewMatter(region string) *Matter { return &Matter{Region: region} }
+
+// matterMarkers maps the directive name of a matter marker to its region kind.
+var matterMarkers = map[string]string{
+	"frontmatter": "front",
+	"mainmatter":  "main",
+	"appendix":    "appendix",
+}

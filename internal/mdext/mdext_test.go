@@ -56,7 +56,6 @@ func notAny(t *testing.T, got string, subs ...string) {
 func TestTOCStructureAndNumbering(t *testing.T) {
 	got := render(t, numbered(), strings.Join([]string{
 		":::toc",
-		":::",
 		"",
 		"# Einleitung",
 		"## Aufbau",
@@ -79,7 +78,7 @@ func TestTOCStructureAndNumbering(t *testing.T) {
 }
 
 func TestNumberingOffByDefault(t *testing.T) {
-	got := render(t, mdext.Config{}, ":::toc\n:::\n\n# Eins\n## Zwei\n")
+	got := render(t, mdext.Config{}, ":::toc\n\n# Eins\n## Zwei\n")
 	// Headings carry no number, and the TOC entries have no number span,
 	// but the TOC is still generated.
 	wantAll(t, got,
@@ -93,27 +92,64 @@ func TestNumberingOffByDefault(t *testing.T) {
 func TestHeadingMarkers(t *testing.T) {
 	got := render(t, numbered(), strings.Join([]string{
 		":::toc",
-		":::",
 		"",
 		"# Kurzreferat {.unnumbered .notoc}",
 		"# Einleitung",
-		"# Anhang {.appendix}",
-		"## Detail",
-		"# Weiteres",
+		"# Literaturverzeichnis {.unnumbered}",
 	}, "\n"))
 
-	// Kurzreferat: unnumbered + excluded from the TOC. The marker classes
-	// deliberately leak onto the heading (e.g. class="appendix").
+	// {.unnumbered .notoc}: no number, excluded from the TOC.
 	notAny(t, got, `href="#kurzreferat"`)
 	wantAll(t, got,
 		`<h1 class="unnumbered notoc" id="kurzreferat">Kurzreferat</h1>`, // no secnum span
 		`<h1 id="einleitung"><span class="mdoc-secnum">1</span>`,
-		// appendix lettering:
-		`<h1 class="appendix" id="anhang"><span class="mdoc-secnum">A</span>`,
-		`<h2 id="detail"><span class="mdoc-secnum">A.1</span>`,
-		`<h1 id="weiteres"><span class="mdoc-secnum">B</span>`,
-		`<span class="mdoc-toc-num">A</span><span class="mdoc-toc-text">Anhang</span>`,
+		// {.unnumbered} alone: no number, but still in the TOC (no num span).
+		`<h1 class="unnumbered" id="literaturverzeichnis">Literaturverzeichnis</h1>`,
+		`href="#literaturverzeichnis"><span class="mdoc-toc-text">Literaturverzeichnis</span>`,
 	)
+	notAny(t, got, `mdoc-secnum">2`) // Literaturverzeichnis didn't consume a number
+}
+
+func TestMatterRegions(t *testing.T) {
+	got := render(t, numbered(), strings.Join([]string{
+		":::frontmatter",
+		"# Kurzreferat",
+		"",
+		":::mainmatter",
+		"# Einleitung",
+		"## Aufbau",
+		"",
+		":::appendix",
+		"# Diagramme",
+		"## Detail",
+		"# Software",
+	}, "\n"))
+
+	wantAll(t, got,
+		// regions wrap their content:
+		`<div class="mdoc-matter-front">`,
+		`<div class="mdoc-matter-main">`,
+		`<div class="mdoc-matter-appendix">`,
+		// front matter: unnumbered (no secnum):
+		`<h1 id="kurzreferat">Kurzreferat</h1>`,
+		// main matter: decimal:
+		`<h1 id="einleitung"><span class="mdoc-secnum">1</span>`,
+		`<h2 id="aufbau"><span class="mdoc-secnum">1.1</span>`,
+		// appendix: lettered, with the chapter counter reset:
+		`<h1 id="diagramme"><span class="mdoc-secnum">A</span>`,
+		`<h2 id="detail"><span class="mdoc-secnum">A.1</span>`,
+		`<h1 id="software"><span class="mdoc-secnum">B</span>`,
+	)
+	// markers are consumed, not rendered as empty directives:
+	notAny(t, got, `:::frontmatter`, `mdoc-matter-front">\n</div>`)
+}
+
+func TestPageBreak(t *testing.T) {
+	got := render(t, mdext.Config{}, "A\n\n:::page\n\nB\n")
+	wantAll(t, got, `<div class="mdoc-pagebreak"></div>`)
+
+	styled := render(t, mdext.Config{}, ":::page cover\n")
+	wantAll(t, styled, `<div class="mdoc-pagebreak mdoc-page-cover"></div>`)
 }
 
 func TestCitationsAndBibliography(t *testing.T) {
@@ -126,7 +162,6 @@ func TestCitationsAndBibliography(t *testing.T) {
 		"An undefined one [@nope].",
 		"",
 		":::bibliography",
-		":::",
 	}, "\n"))
 
 	wantAll(t, got,
@@ -169,9 +204,7 @@ func TestTransliteratedHeadingID(t *testing.T) {
 
 func TestTOCDepthOption(t *testing.T) {
 	got := render(t, mdext.Config{}, strings.Join([]string{
-		":::toc",
-		"depth: 1",
-		":::",
+		":::toc depth=1",
 		"",
 		"# One",
 		"## Two",

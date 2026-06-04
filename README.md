@@ -143,7 +143,24 @@ A more complete reference theme lives at `example/themes/plain.html` — serif b
 
 ## Generated content: contents, numbering, bibliography
 
-mdoc builds a table of contents, section numbers, and a bibliography from the markdown itself — you don't hand-write them. Block **directives** (`:::name … :::`) mark where generated blocks go, and `[@key]` cites references declared in frontmatter.
+mdoc builds a table of contents, section numbers, and a bibliography from the markdown itself — you don't hand-write them. Single-line **directives** (`:::name [options]`) mark where generated blocks go and divide the document into regions; `[@key]` cites references declared in frontmatter.
+
+### Document regions
+
+Three markers switch the current *matter*; everything up to the next marker belongs to it. Regions set the numbering and TOC defaults, so you rarely mark individual headings:
+
+```markdown
+:::frontmatter      ← headings unnumbered and out of the TOC (abstract, …)
+# Kurzreferat
+
+:::mainmatter       ← numbered chapters, in the TOC; each starts a new page
+# Introduction
+
+:::appendix         ← top-level headings become A, B, … (in the TOC)
+# Diagrams
+```
+
+`:::page` forces a page break where the engine wouldn't — e.g. between two front-matter pages; `:::page <style>` names a theme page style. Chapters in `:::mainmatter` / `:::appendix` break automatically, so `:::page` is mostly a front-matter tool.
 
 ### Table of contents
 
@@ -152,12 +169,10 @@ Put a `:::toc` where the contents should appear; mdoc collects every heading in 
 ```markdown
 # Contents
 
-:::toc
-depth: 3
-:::
+:::toc depth=3
 ```
 
-- `depth:` — deepest heading level to include (default `3`).
+- `depth=N` — deepest heading level to include (default `3`).
 
 ### Heading numbering
 
@@ -168,13 +183,12 @@ numbering:
   enabled: true
 ```
 
-Per-heading markers (written as a trailing `{…}`, no extra config):
+Per-heading markers override the region default (written as a trailing `{…}`):
 
 | Marker | Effect |
 | --- | --- |
-| `## Title {.unnumbered}` | no section number (still listed in the TOC) |
-| `## Title {.notoc}` | excluded from the TOC |
-| `# Anhang {.appendix}` | this and following top-level headings number as `A`, `B`, … |
+| `## Title {.unnumbered}` | drop the section number (stays in the TOC) |
+| `## Title {.notoc}` | exclude from the TOC |
 | `## Title {#my-id}` | explicit anchor id (otherwise auto-slugged, with `ä→ae`, `ß→ss`, …) |
 
 ### Citations and bibliography
@@ -198,7 +212,6 @@ references:
 # References
 
 :::bibliography
-:::
 ```
 
 Each reference takes `author`, `title`, `year`, `publisher`, `edition`, `isbn`, `url`, or a raw `text:` escape-hatch used verbatim. Richer citation styles (CSL) are future work.
@@ -213,6 +226,8 @@ Generated blocks emit a stable, `mdoc-`-prefixed class contract for themes to st
 | Section number | `<span class="mdoc-secnum">2.1</span>` as the heading's first child |
 | Citation | `<a class="mdoc-cite" href="#mdoc-ref-KEY">[1]</a>` — unresolved: `<span class="mdoc-cite mdoc-cite-unresolved">[?]</span>` |
 | Bibliography | `<ol class="mdoc-bib">` › `<li class="mdoc-bib-entry" id="mdoc-ref-KEY">` › `<span class="mdoc-bib-label">[1]</span>` + `<span class="mdoc-bib-text">` |
+| Matter region | `<div class="mdoc-matter-front">` / `-main` / `-appendix` wrapping the region |
+| Page break | `<div class="mdoc-pagebreak"></div>` (optionally `mdoc-page-<style>`) |
 
 TOC page numbers, added in the theme:
 

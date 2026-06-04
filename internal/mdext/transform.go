@@ -33,42 +33,64 @@ func (t *transformer) Transform(doc *gast.Document, reader text.Reader, pc parse
 		}
 	}
 
+	// Pass 0: wrap `:::frontmatter` / `:::mainmatter` / `:::appendix` regions
+	// into Matter containers (the numbering below reads the region per heading).
+	wrapMatter(doc)
+
 	// Pass 1: number headings, inject the section-number node, collect entries.
+	// A heading's region sets the defaults (front = unnumbered + out of the TOC;
+	// main = decimal; appendix = lettered); per-heading classes override them.
 	var headings []HeadingEntry
 	counters := make([]int, 7) // indices 1..6
-	appendix := false
+	prevAppendix := false
 	_ = gast.Walk(doc, func(n gast.Node, entering bool) (gast.WalkStatus, error) {
 		h, ok := n.(*gast.Heading)
 		if !ok || !entering {
 			return gast.WalkContinue, nil
 		}
 		classes := classesOf(h)
-		notoc := slices.Contains(classes, "notoc")
+		region := matterOf(h)
+
+		numbered := t.cfg.Numbering.Enabled
+		intoc := true
+		if region == "front" {
+			numbered, intoc = false, false
+		}
+		if slices.Contains(classes, "unnumbered") {
+			numbered = false
+		} else if slices.Contains(classes, "numbered") {
+			numbered = t.cfg.Numbering.Enabled
+		}
+		if slices.Contains(classes, "notoc") {
+			intoc = false
+		} else if slices.Contains(classes, "intoc") {
+			intoc = true
+		}
+
+		isAppendix := region == "appendix"
+		if isAppendix && !prevAppendix {
+			for i := range counters {
+				counters[i] = 0
+			}
+		}
+		prevAppendix = isAppendix
 
 		title := nodeText(h, source) // before injecting the number
 		number := ""
-		if t.cfg.Numbering.Enabled && !slices.Contains(classes, "unnumbered") {
-			if slices.Contains(classes, "appendix") && !appendix {
-				appendix = true
-				for i := range counters {
-					counters[i] = 0
-				}
+		if numbered && h.Level >= 1 && h.Level < len(counters) {
+			counters[h.Level]++
+			for i := h.Level + 1; i < len(counters); i++ {
+				counters[i] = 0
 			}
-			if h.Level >= 1 && h.Level < len(counters) {
-				counters[h.Level]++
-				for i := h.Level + 1; i < len(counters); i++ {
-					counters[i] = 0
-				}
-				number = formatNumber(counters, h.Level, appendix)
-				sn := NewSecNum(number)
-				if h.FirstChild() != nil {
-					h.InsertBefore(h, h.FirstChild(), sn)
-				} else {
-					h.AppendChild(h, sn)
-				}
+			number = formatNumber(counters, h.Level, isAppendix)
+			sn := NewSecNum(number)
+			if h.FirstChild() != nil {
+				h.InsertBefore(h, h.FirstChild(), sn)
+			} else {
+				h.AppendChild(h, sn)
 			}
 		}
-		if !notoc {
+		if intoc {
 			headings = append(headings, HeadingEntry{
 				Level:  h.Level,
 				Number: number,
@@ -125,6 +147,42 @@ func (t *transformer) Transform(doc *gast.Document, reader text.Reader, pc parse
 		}
 		return gast.WalkSkipChildren, nil
 	})
+}
+
+// wrapMatter replaces top-level `:::frontmatter` / `:::mainmatter` /
+// `:::appendix` markers with Matter containers holding the nodes that follow
+// each marker (up to the next marker). Content before the first marker is left
+// in place, so documents that don't use matter markers are untouched.
+func wrapMatter(doc *gast.Document) {
+	var kids []gast.Node
+	for c := doc.FirstChild(); c != nil; c = c.NextSibling() {
+		kids = append(kids, c)
+	}
+	var container *Matter
+	for _, n := range kids {
+		if d, ok := n.(*Directive); ok {
+			if region, isMarker := matterMarkers[d.Name]; isMarker {
+				container = NewMatter(region)
+				doc.InsertBefore(doc, n, container)
+				doc.RemoveChild(doc, n)
+				continue
+			}
+		}
+		if container != nil {
+			container.AppendChild(container, n) // also detaches n from doc
+		}
+	}
+}
+
+// matterOf returns the region ("front"/"main"/"appendix") of the nearest Matter
+// ancestor, or "" when the node is outside any matter region.
+func matterOf(n gast.Node) string {
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if m, ok := p.(*Matter); ok {
+			return m.Region
+		}
+	}
+	return ""
 }
 
 func formatNumber(counters []int, level int, appendix bool) string {

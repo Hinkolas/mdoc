@@ -20,6 +20,7 @@ func NewNodeRenderer() renderer.NodeRenderer { return &nodeRenderer{} }
 // RegisterFuncs implements renderer.NodeRenderer.
 func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindDirective, r.renderDirective)
+	reg.Register(KindMatter, r.renderMatter)
 	reg.Register(KindCitation, r.renderCitation)
 	reg.Register(KindSecNum, r.renderSecNum)
 }
@@ -34,8 +35,27 @@ func (r *nodeRenderer) renderDirective(w util.BufWriter, _ []byte, n gast.Node, 
 		r.renderTOC(w, d)
 	case "bibliography":
 		r.renderBib(w, d)
+	case "page":
+		// A page break; the optional arg names a theme page style.
+		_, _ = w.WriteString(`<div class="mdoc-pagebreak`)
+		if d.Arg != "" {
+			_, _ = w.WriteString(` mdoc-page-`)
+			_, _ = w.Write(util.EscapeHTML([]byte(d.Arg)))
+		}
+		_, _ = w.WriteString("\"></div>\n")
 	}
 	return gast.WalkSkipChildren, nil
+}
+
+func (r *nodeRenderer) renderMatter(w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	if entering {
+		_, _ = w.WriteString(`<div class="mdoc-matter-`)
+		_, _ = w.WriteString(n.(*Matter).Region)
+		_, _ = w.WriteString("\">\n")
+	} else {
+		_, _ = w.WriteString("</div>\n")
+	}
+	return gast.WalkContinue, nil
 }
 
 func (r *nodeRenderer) renderTOC(w util.BufWriter, d *Directive) {
