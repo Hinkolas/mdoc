@@ -19,7 +19,8 @@ type Watcher struct {
 	onChange func(changed string)
 
 	mu        sync.Mutex
-	themePath string // the single active theme file, updated via WatchTheme
+	themePath string          // the single active theme file, updated via WatchTheme
+	includes  map[string]bool // included files currently watched, updated via WatchIncludes
 }
 
 // NewWatcher creates a watcher and adds each given path. A path that doesn't
@@ -71,6 +72,38 @@ func (w *Watcher) WatchTheme(path string) {
 		}
 	}
 	w.themePath = path
+}
+
+// WatchIncludes follows the document's `:::include` chapter files for content
+// edits, so editing a chapter reloads the preview. The include set can change
+// mid-session (the user adds or removes a `:::include`), so this is called on
+// every reload with the freshly-resolved set: paths no longer present are
+// dropped, newly-appeared ones are added. A file that can't be watched (e.g. it
+// was just deleted) is skipped — a broken include surfaces as a render error,
+// not a watcher failure.
+func (w *Watcher) WatchIncludes(paths []string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	next := make(map[string]bool, len(paths))
+	for _, p := range paths {
+		if p != "" {
+			next[p] = true
+		}
+	}
+	for p := range w.includes {
+		if !next[p] {
+			_ = w.w.Remove(p)
+		}
+	}
+	for p := range next {
+		if !w.includes[p] {
+			if err := w.w.Add(p); err != nil {
+				log.Printf("watch include %s: %v", p, err)
+				delete(next, p)
+			}
+		}
+	}
+	w.includes = next
 }
 
 // Run blocks until Close is called. A 100ms debounce coalesces editor

@@ -162,6 +162,32 @@ Three markers switch the current *matter*; everything up to the next marker belo
 
 `:::page` forces a page break where the engine wouldn't — e.g. between two front-matter pages; `:::page <style>` names a theme page style. Chapters in `:::mainmatter` / `:::appendix` break automatically, so `:::page` is mostly a front-matter tool.
 
+### Multi-file documents
+
+A long document can be split into one file per chapter and stitched back together from a root/index file with `:::include`, the way LaTeX uses `\input`. The root owns the layout and all configuration; each `:::include <path>` is replaced by the referenced file's body, in place:
+
+```markdown
+:::frontmatter
+:::toc
+
+:::mainmatter
+:::include chapters/01-introduction.md
+:::include chapters/02-methods.md
+
+:::appendix
+:::include appendix/data.md
+```
+
+Includes are spliced **before** the document is parsed, so everything that spans chapters just works from one combined source: continuous heading numbering, a TOC over every chapter, per-chapter figure/table counters, a single bibliography, and a `[#id]` cross-reference that points from one chapter into another.
+
+- **The root owns configuration.** Theme, `page`, `numbering`, `labels`, `data`, and `references` all come from the root frontmatter — the LaTeX preamble model.
+- **Chapters may keep their own frontmatter.** It's parsed off and discarded on include, so a chapter file stays independently openable with `mdoc open chapters/01-introduction.md` for focused editing while carrying its own `mdoc: true` / `theme:` for that standalone preview.
+- **Paths resolve relative to the including file**, so a `part1/index.md` can `:::include chapter.md` from its own directory. Includes nest; a cycle or a missing file is a clear error.
+- **Relative asset paths resolve relative to the *root* document.** The combined body renders as if it all lived in the root's directory, so shared images belong under the root's tree (e.g. a top-level `assets/`). Per-chapter asset directories are a known limitation — see `example/thesis/LIMITATIONS.md`.
+- `mdoc open` watches every included file, so editing a chapter live-reloads the preview; `mdoc bundle` packs all of them into the `.mdoc` archive at their relative paths.
+
+`example/book/` is a small worked example: a root with a preface and a generated TOC, two chapters in `chapters/`, and a cross-reference running between them.
+
 ### Table of contents
 
 Put a `:::toc` where the contents should appear; mdoc collects every heading in document order and renders the list. Page numbers are filled in at print time, so they stay correct.
@@ -289,7 +315,7 @@ Page numbers are filled in by the theme via `target-counter` — for the TOC, th
 ## How it works
 
 ```
-foo.md  ──▶  Goldmark (GFM + footnotes)  ──▶  HTML body
+foo.md  ──▶  :::include splice  ──▶  Goldmark (GFM + footnotes)  ──▶  HTML body
                                               │
                                               ▼
                               html/template (theme)

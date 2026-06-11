@@ -140,6 +140,18 @@ func (s *Server) CurrentTheme() (path, warning, docErr string) {
 	return thm.Path, warning, ""
 }
 
+// CurrentIncludes re-reads the document and reports the absolute paths of the
+// files it pulls in via `:::include`, so the watcher can follow them. A document
+// that can't be read (e.g. mid-edit) yields nil — the render path reports that
+// error separately; here we just leave the include watch set unchanged-worthy.
+func (s *Server) CurrentIncludes() []string {
+	doc, err := document.Open(s.docPath)
+	if err != nil {
+		return nil
+	}
+	return doc.Includes
+}
+
 // handleStatus reports the latest non-fatal preview diagnostic — currently
 // just the theme warning — so the SPA can show it without parsing the
 // rendered HTML.

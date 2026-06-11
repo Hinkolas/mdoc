@@ -61,6 +61,9 @@ var openCmd = &cobra.Command{
 		watcher, err = preview.NewWatcher(func(changed string) {
 			themePath, warning, docErr := srv.CurrentTheme()
 			watcher.WatchTheme(themePath)
+			// Re-derive the include set on every change so adding or removing a
+			// `:::include` starts or stops watching the referenced chapter live.
+			watcher.WatchIncludes(srv.CurrentIncludes())
 			if err := srv.PushReload(); err != nil {
 				fmt.Fprintln(os.Stderr, "reload:", err)
 			}
@@ -89,6 +92,7 @@ var openCmd = &cobra.Command{
 		}
 		defer watcher.Close()
 		watcher.WatchTheme(thm.Path)
+		watcher.WatchIncludes(doc.Includes)
 		go watcher.Run()
 
 		printStartupBanner(Version, srv.URL(), doc.Path)

@@ -91,6 +91,11 @@ type Document struct {
 	// Dir is the absolute directory containing the source file. Relative
 	// references inside the document (images, includes) resolve from here.
 	Dir string
+	// Includes lists the absolute paths of files spliced into Body via
+	// `:::include`, in include order. Empty for documents that use no includes.
+	// The watcher (live preview) and the bundler read it so a change to any
+	// chapter triggers a reload and every chapter lands in the .mdoc archive.
+	Includes []string
 }
 
 // Open reads and parses a markdown file.
@@ -115,10 +120,17 @@ func Open(path string) (*Document, error) {
 		cfg = Default
 	}
 
+	dir := filepath.Dir(abs)
+	combined, includes, err := resolveIncludes(string(body), dir, []string{abs})
+	if err != nil {
+		return nil, err
+	}
+
 	return &Document{
-		Config: cfg,
-		Body:   string(body),
-		Path:   abs,
-		Dir:    filepath.Dir(abs),
+		Config:   cfg,
+		Body:     combined,
+		Path:     abs,
+		Dir:      dir,
+		Includes: includes,
 	}, nil
 }

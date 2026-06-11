@@ -63,6 +63,27 @@ lists (nomenclature).
 
 ---
 
+## Update — multi-file documents (`:::include`)
+
+A thesis this size wants to live in more than one file. `:::include <path>`
+splices a chapter file's body into the root before parsing (the LaTeX `\input`
+model), so all the apparatus above keeps working across files from one combined
+source: continuous numbering, a document-wide TOC, cross-chapter `[#id]`
+references, one bibliography. The root frontmatter owns all configuration;
+included files may keep their own frontmatter (discarded on include) so each
+chapter stays openable on its own with `mdoc open`. `mdoc open` watches every
+included file and `mdoc bundle` packs them all into the `.mdoc`.
+
+**Known limitation — asset paths.** The combined body renders as if it all lived
+in the root document's directory, so a relative `![](…)` inside an included
+chapter resolves against the *root*, not the chapter's own directory. Shared
+images therefore belong under the root's tree (e.g. a top-level `assets/`);
+per-chapter asset directories with chapter-relative image paths are not resolved
+yet. The native fix is to rewrite relative URLs in an included file to the root
+when splicing (and pull those assets into the bundle) — deferred for now.
+
+---
+
 ## The one finding that explains most of the gaps
 
 **A theme is CSS-only. It cannot run JavaScript, and it has no view of the

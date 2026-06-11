@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hinkolas/mdoc/internal/document"
 	"github.com/hinkolas/mdoc/internal/theme"
@@ -73,6 +74,28 @@ func Export(doc *document.Document, thm *theme.Theme, opts Options) (*Result, er
 		return nil, fmt.Errorf("add document: %w", err)
 	}
 	res.Entries = append(res.Entries, docEntry)
+
+	// 1b. Files pulled in via `:::include`, at their path relative to the root
+	//     document so the splice paths keep resolving after the bundle is
+	//     unpacked. Includes are expected under the document directory (same
+	//     convention as assets); one outside it has no clean place in the
+	//     archive, so that's an error rather than a silently broken bundle.
+	seen := map[string]bool{}
+	for _, inc := range doc.Includes {
+		if seen[inc] {
+			continue // a file included from two places is stored once
+		}
+		seen[inc] = true
+		rel, err := filepath.Rel(doc.Dir, inc)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("included file %s is outside the document directory %s; bundling requires includes under it", inc, doc.Dir)
+		}
+		entry := filepath.ToSlash(rel)
+		if err := addFile(zw, entry, inc); err != nil {
+			return nil, fmt.Errorf("add include %s: %w", rel, err)
+		}
+		res.Entries = append(res.Entries, entry)
+	}
 
 	// 2. The resolved theme. Always included regardless of whether it
 	//    came from the project's themes/ or the user's config dir — a
