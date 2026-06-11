@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220" role="img" aria-labelledby="title desc">
+  <title id="title">Pipeline overview</title>
+  <desc id="desc">A simple ingestion pipeline from sources to queue to workers to warehouse.</desc>
+  <style>
+    .box { fill: #f8fafc; stroke: #334155; stroke-width: 2; }
+    .accent { fill: #e0f2fe; stroke: #0369a1; stroke-width: 2; }
+    .text { font: 600 18px system-ui, sans-serif; fill: #0f172a; text-anchor: middle; }
+    .small { font: 14px system-ui, sans-serif; fill: #475569; text-anchor: middle; }
+    .arrow { stroke: #334155; stroke-width: 2.5; marker-end: url(#arrow); fill: none; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect x="30" y="60" width="130" height="80" rx="8" class="box"/>
+  <text x="95" y="96" class="text">Sources</text>
+  <text x="95" y="120" class="small">events, files</text>
+  <path d="M 165 100 H 255" class="arrow"/>
+  <rect x="260" y="60" width="130" height="80" rx="8" class="accent"/>
+  <text x="325" y="96" class="text">Queue</text>
+  <text x="325" y="120" class="small">buffered work</text>
+  <path d="M 395 100 H 485" class="arrow"/>
+  <rect x="490" y="60" width="130" height="80" rx="8" class="box"/>
+  <text x="555" y="96" class="text">Workers</text>
+  <text x="555" y="120" class="small">validate, enrich</text>
+  <path d="M 555 145 V 178 H 95 V 145" class="arrow"/>
+  <text x="325" y="198" class="small">feedback and retry loop</text>
+</svg>

@@ -4,16 +4,18 @@ description: >-
   Author and edit mdoc documents — markdown rendered to a paginated PDF via
   paged.js and Chromium. Use when creating or editing markdown files that carry
   `mdoc: true` frontmatter, when the user mentions mdoc, or when they want a
-  PDF/preview from a markdown document using the mdoc CLI. Covers the
-  frontmatter schema, supported markdown + KaTeX math, Go-template
-  interpolation in the body, themes, and the `mdoc` commands.
+  PDF/preview/bundle from markdown using the mdoc CLI. Covers frontmatter,
+  supported markdown + KaTeX math, Go-template interpolation, directives
+  (`:::toc`, `:::figure`, `:::table`, `:::include`, etc.), citations,
+  cross-references, themes, and the `mdoc` commands.
 ---
 
 # Authoring mdoc documents
 
-mdoc renders a single markdown file (with YAML frontmatter) into a paginated
-PDF. The pipeline is: **Go text/template over the body → goldmark Markdown→HTML
-→ an HTML theme wrap → paged.js pagination in Chromium → PDF**.
+mdoc renders markdown with YAML frontmatter into a paginated PDF. The pipeline
+is: **`:::include` splice → Go text/template over the body → goldmark
+Markdown→HTML with mdoc extensions → HTML theme wrap → paged.js pagination in
+Chromium → PDF**.
 
 ## The one rule that trips people up
 
@@ -43,12 +45,15 @@ $$
 
 ## Reference files (open the relevant one when you need detail)
 
-- **frontmatter.md** — every frontmatter field, types, defaults, and the `page`
-  size/margin and `data` map.
-- **syntax.md** — supported markdown (GFM, footnotes, raw HTML), KaTeX math
-  delimiters and gotchas, and Go-template interpolation in the body.
+- **frontmatter.md** — every frontmatter field, types, defaults, references,
+  numbering, labels, page size/margin, and custom `data`.
+- **syntax.md** — markdown, math, templates, directives, includes, numbering,
+  figures/tables, TOC/LOF/LOT, citations, bibliography, cross-references, and
+  page breaks.
+- **themes.md** — theme lookup, template data, paged.js page rules, and the
+  stable `mdoc-*` CSS class contract emitted by the renderer.
 - **cli.md** — `mdoc print` / `open` / `bundle` / `install`, their flags, and
-  how relative asset paths and themes resolve.
+  script-friendly output behavior.
 - **examples/document.md** — a complete sample document.
 - **examples/plain.html** — a working starter theme to copy to
   `themes/<name>.html` and customize (the built-in `system` theme is similar).
@@ -59,6 +64,20 @@ $$
 2. Pick a theme. Omit `theme` (or `theme: system`) for the built-in styled
    default; `theme: none` for a bare render. A custom `theme: <name>` needs
    `themes/<name>.html` next to the document or in `~/.config/mdoc/themes/` —
-   copy `examples/plain.html` there as a starting point. A missing/broken
-   theme isn't fatal: it falls back to `system` with a warning. (See cli.md.)
+   copy `examples/plain.html` there as a starting point. A missing/broken theme
+   falls back to `system` with a warning. (See themes.md.)
 3. Run `mdoc print <file>` for a PDF, or `mdoc open <file>` for a live preview.
+
+## Authoring rules of thumb
+
+- Start every real document with `mdoc: true`; otherwise frontmatter is ignored
+  and defaults are used.
+- Use mdoc directives instead of hand-written apparatus: `:::toc`,
+  `:::figure`, `:::table`, `:::lof`, `:::lot`, `:::bibliography`, and
+  `:::page`.
+- Use `{#id}`, `{.unnumbered}`, `{.notoc}`, `{.intoc}` and frontmatter
+  `numbering.enabled` for heading numbering/TOC control.
+- Use `[#id]` for number references, `[#id page]` for page references, and
+  `[@key]` for bibliography citations.
+- When creating custom themes, style the stable `mdoc-*` classes documented in
+  themes.md and keep `{{.Body}}` in the template.

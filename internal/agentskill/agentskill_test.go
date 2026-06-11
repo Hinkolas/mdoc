@@ -84,16 +84,18 @@ func TestCopyToCopiesBundledSkill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CopyTo: %v", err)
 	}
-	if files < 6 {
-		t.Fatalf("CopyTo copied %d files, want at least 6", files)
+	if files < 8 {
+		t.Fatalf("CopyTo copied %d files, want at least 8", files)
 	}
 	for _, rel := range []string{
 		"SKILL.md",
 		"frontmatter.md",
 		"syntax.md",
+		"themes.md",
 		"cli.md",
 		filepath.Join("examples", "document.md"),
 		filepath.Join("examples", "plain.html"),
+		filepath.Join("examples", "assets", "pipeline.svg"),
 	} {
 		if _, err := os.Stat(filepath.Join(dest, rel)); err != nil {
 			t.Fatalf("expected copied file %s: %v", rel, err)
