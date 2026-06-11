@@ -101,4 +101,13 @@ case ":${PATH}:" in
   *) info "note: ${BIN_DIR} is not on your PATH — add it to your shell profile" ;;
 esac
 
-info "run 'mdoc install' once to fetch the Chromium snapshot mdoc renders with."
+if [ -t 1 ] && { [ -t 0 ] || [ -r /dev/tty ]; }; then
+  info "starting interactive setup..."
+  if [ -t 0 ]; then
+    "${BIN_DIR}/${BIN_NAME}" install
+  else
+    "${BIN_DIR}/${BIN_NAME}" install </dev/tty
+  fi
+else
+  info "run 'mdoc install' once to set up Chromium and optional agent skills."
+fi

@@ -1,35 +1,269 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/hinkolas/mdoc/internal/agentskill"
 	"github.com/hinkolas/mdoc/internal/browser"
 )
 
 var installRevision int
+var installSkillTarget string
+var installSkillPath string
 
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Download a compatible Chromium snapshot into the user cache directory.",
+	Short: "Set up Chromium and optional agent skills.",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		plan, err := buildInstallPlan(
+			cmd.Flags().Changed("chromium"),
+			installRevision,
+			installSkillTarget,
+			installSkillPath,
+			args,
+			stdinIsTTY && stdoutIsTTY,
+		)
+		if err != nil {
+			return err
+		}
+		if plan.Interactive {
+			return runInstallWizard(plan.Revision)
+		}
+		return runInstallDirect(plan)
+	},
+}
+
+func init() {
+	installCmd.Flags().IntVar(&installRevision, "chromium", -1, "Install Chromium, optionally pinned to a revision")
+	installCmd.Flags().Lookup("chromium").NoOptDefVal = "-1"
+	installCmd.Flags().StringVar(&installSkillTarget, "skill", "", "Install the bundled mdoc skill for claude, codex, or all")
+	installCmd.Flags().StringVar(&installSkillPath, "path", "", "Parent skills directory for a single --skill target")
+	rootCmd.AddCommand(installCmd)
+}
+
+type installPlan struct {
+	Interactive     bool
+	InstallChromium bool
+	InstallSkill    bool
+	Revision        int
+	SkillTarget     string
+	SkillPath       string
+}
+
+func buildInstallPlan(chromiumChanged bool, revision int, skillTarget, skillPath string, args []string, interactive bool) (installPlan, error) {
+	if len(args) > 0 {
+		if !chromiumChanged || revision != -1 {
+			return installPlan{}, fmt.Errorf("unexpected argument %q", args[0])
+		}
+		parsed, err := strconv.Atoi(args[0])
+		if err != nil {
+			return installPlan{}, fmt.Errorf("invalid Chromium revision %q", args[0])
+		}
+		revision = parsed
+		chromiumChanged = true
+	}
+	if skillPath != "" && skillTarget == "" {
+		return installPlan{}, fmt.Errorf("--path requires --skill")
+	}
+	if skillTarget != "" {
+		if _, err := agentskill.ResolveTargets(skillTarget, skillPath); err != nil {
+			return installPlan{}, err
+		}
+	}
+
+	flagsPresent := chromiumChanged || skillTarget != "" || skillPath != ""
+	if !flagsPresent {
+		if interactive {
+			return installPlan{Interactive: true, Revision: revision}, nil
+		}
+		return installPlan{InstallChromium: true, Revision: revision}, nil
+	}
+	return installPlan{
+		InstallChromium: chromiumChanged,
+		InstallSkill:    skillTarget != "",
+		Revision:        revision,
+		SkillTarget:     skillTarget,
+		SkillPath:       skillPath,
+	}, nil
+}
+
+func runInstallDirect(plan installPlan) error {
+	printedHeader := false
+	if plan.InstallChromium {
 		ui := newInstallUI()
-		res, err := browser.Install(installRevision, ui)
+		res, err := browser.Install(plan.Revision, ui)
 		if err != nil {
 			ui.abort()
 			return err
 		}
 		ui.finish(res)
-		return nil
-	},
+		printedHeader = true
+	}
+	if plan.InstallSkill {
+		results, err := agentskill.Install(plan.SkillTarget, plan.SkillPath)
+		if err != nil {
+			return err
+		}
+		if !printedHeader {
+			printBrandHeader()
+			printedHeader = true
+		}
+		printSkillResults(results)
+		fmt.Println()
+	}
+	return nil
 }
 
-func init() {
-	installCmd.Flags().IntVar(&installRevision, "chromium", -1, "Specific Chromium revision to install (default: latest known)")
-	rootCmd.AddCommand(installCmd)
+func runInstallWizard(revision int) error {
+	printBrandHeader()
+	reader := bufio.NewReader(os.Stdin)
+
+	status, err := browser.DetectChromium(revision)
+	if err != nil {
+		return err
+	}
+	switch {
+	case status.Packaged != nil:
+		printRow(10, "chromium", green("ready")+" "+dim(fmt.Sprintf("(revision %d, packaged)", status.Packaged.Revision)))
+		printRow(10, "path", status.Packaged.BinPath)
+		choice, err := promptChoice(reader, "Chromium is already installed. What should mdoc do?", []promptOption{
+			{Value: "keep", Label: "Use cached Chromium"},
+			{Value: "download", Label: "Download packaged Chromium again"},
+		}, 0)
+		if err != nil {
+			return err
+		}
+		if choice == "download" {
+			if _, err := installChromium(revision, true, true); err != nil {
+				return err
+			}
+		}
+	case status.System != "":
+		printRow(10, "chromium", green("found")+" "+dim("(system)"))
+		printRow(10, "path", status.System)
+		choice, err := promptChoice(reader, "Use system Chromium or install mdoc's packaged Chromium?", []promptOption{
+			{Value: "system", Label: "Use system Chromium"},
+			{Value: "download", Label: "Download packaged Chromium"},
+		}, 0)
+		if err != nil {
+			return err
+		}
+		if choice == "download" {
+			if _, err := installChromium(revision, false, true); err != nil {
+				return err
+			}
+		}
+	default:
+		choice, err := promptChoice(reader, "No Chromium was found. Download mdoc's packaged Chromium?", []promptOption{
+			{Value: "yes", Label: "Download packaged Chromium"},
+			{Value: "no", Label: "Skip Chromium"},
+		}, 0)
+		if err != nil {
+			return err
+		}
+		if choice == "yes" {
+			if _, err := installChromium(revision, false, true); err != nil {
+				return err
+			}
+		} else {
+			printRow(10, "chromium", yellow("skipped"))
+		}
+	}
+
+	skillChoice, err := promptChoice(reader, "Install the bundled mdoc skill for an agent?", []promptOption{
+		{Value: "none", Label: "None"},
+		{Value: "claude", Label: "Claude"},
+		{Value: "codex", Label: "Codex"},
+		{Value: "all", Label: "Claude and Codex"},
+	}, 0)
+	if err != nil {
+		return err
+	}
+	if skillChoice == "none" {
+		printRow(10, "skills", yellow("skipped"))
+		fmt.Println()
+		return nil
+	}
+	results, err := agentskill.Install(skillChoice, "")
+	if err != nil {
+		return err
+	}
+	printSkillResults(results)
+	fmt.Println()
+	return nil
+}
+
+func installChromium(revision int, fresh bool, headerAlreadyShown bool) (*browser.InstallResult, error) {
+	ui := newInstallUI()
+	ui.headerShown = headerAlreadyShown
+	var (
+		res *browser.InstallResult
+		err error
+	)
+	if fresh {
+		res, err = browser.InstallFresh(revision, ui)
+	} else {
+		res, err = browser.Install(revision, ui)
+	}
+	if err != nil {
+		ui.abort()
+		return nil, err
+	}
+	ui.finish(res)
+	return res, nil
+}
+
+func printSkillResults(results []agentskill.InstallResult) {
+	for _, res := range results {
+		printRow(10, res.Target, green("installed")+" "+dim(fmt.Sprintf("(%d files)", res.Files)))
+		printRow(10, "path", res.DestDir)
+	}
+}
+
+type promptOption struct {
+	Value string
+	Label string
+}
+
+func promptChoice(reader *bufio.Reader, question string, options []promptOption, defaultIndex int) (string, error) {
+	if defaultIndex < 0 || defaultIndex >= len(options) {
+		defaultIndex = 0
+	}
+	fmt.Printf("\n  %s %s\n", cyan("?"), question)
+	for i, opt := range options {
+		label := opt.Label
+		if i == defaultIndex {
+			label += " " + dim("(default)")
+		}
+		fmt.Printf("  %s %d. %s\n", dim("│"), i+1, label)
+	}
+	for {
+		fmt.Printf("  %s ", dim("choice:"))
+		line, err := reader.ReadString('\n')
+		if err != nil && line == "" {
+			return "", err
+		}
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" {
+			return options[defaultIndex].Value, nil
+		}
+		if n, err := strconv.Atoi(line); err == nil && n >= 1 && n <= len(options) {
+			return options[n-1].Value, nil
+		}
+		for _, opt := range options {
+			if line == opt.Value || strings.HasPrefix(opt.Value, line) {
+				return opt.Value, nil
+			}
+		}
+		fmt.Printf("  %s enter a number from 1 to %d\n", yellow("warning:"), len(options))
+	}
 }
 
 // installUI translates go-rod's fetchup events (Download:, Progress:,

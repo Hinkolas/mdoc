@@ -22,7 +22,7 @@ mdoc install
 
 This installs the latest release binary for your platform (Linux and macOS, amd64 and arm64) into `~/.local/bin`. Set `MDOC_BIN_DIR` to install elsewhere, or `MDOC_VERSION` (e.g. `MDOC_VERSION=v0.1.0`) to pin a specific version.
 
-`mdoc install` downloads a known-good Chromium snapshot into `$XDG_CACHE_HOME/mdoc/chromium` (`~/Library/Caches/mdoc/chromium` on macOS). If a system Chromium is already on your `PATH`, mdoc will use it as a fallback and you can skip this step.
+`mdoc install` opens a small setup wizard in an interactive terminal. It checks for packaged/system Chromium, asks whether to download mdoc's packaged Chromium snapshot when useful, and can install the bundled mdoc authoring skill for Claude and/or Codex. In non-interactive terminals, plain `mdoc install` keeps the script-friendly behavior and downloads the packaged Chromium snapshot into `$XDG_CACHE_HOME/mdoc/chromium` (`~/Library/Caches/mdoc/chromium` on macOS). If a system Chromium is already on your `PATH`, mdoc can use it as a fallback.
 
 ## Quick start
 
@@ -54,10 +54,23 @@ Opens a chromeless Chromium window with the document. The server watches the doc
 
 ### `mdoc install`
 
-Downloads Chromium into the user cache directory.
+Runs the interactive setup wizard for Chromium and optional agent skills. In non-interactive terminals, downloads Chromium into the user cache directory.
 
 ```
---chromium <revision>   pin a specific Chromium revision (default: latest known)
+    --chromium[=<revision>]   install packaged Chromium, optionally pinned to a revision
+    --skill <target>          install bundled skill: claude, codex, or all
+    --path <dir>              parent skills dir for a single --skill target
+```
+
+Examples:
+
+```bash
+mdoc install --chromium
+mdoc install --chromium=123456
+mdoc install --skill claude
+mdoc install --skill codex
+mdoc install --skill all
+mdoc install --skill claude --path ~/agent/skills
 ```
 
 ## Document format
