@@ -73,6 +73,23 @@ mdoc install --skill all
 mdoc install --skill claude --path ~/agent/skills
 ```
 
+### `mdoc uninstall`
+
+Removes the mdoc binary, the bundled skill (Claude and Codex), and the Chromium cache — everything mdoc downloaded or generated. The config directory (`~/.config/mdoc`, your themes and custom CSS) is kept by default. On an interactive terminal it asks whether to remove the config directory and confirms before deleting anything; in non-interactive terminals it proceeds and keeps the config directory.
+
+```
+    --purge   also remove the config directory (themes) and skip all prompts
+```
+
+Examples:
+
+```bash
+mdoc uninstall            # remove binary, skill, and cache; keep config
+mdoc uninstall --purge    # remove everything, including ~/.config/mdoc
+```
+
+Skills installed to a custom `--path` aren't tracked — remove those directories by hand.
+
 ## Document format
 
 Each document is a Markdown file with an optional YAML frontmatter block. The `mdoc: true` field opts the file into the rendering pipeline — without it, defaults are used.

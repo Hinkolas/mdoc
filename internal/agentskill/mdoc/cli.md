@@ -72,6 +72,20 @@ Claude installs to `~/.claude/skills/mdoc`; Codex installs to
 for a single target, so `--path ~/agent/skills` writes
 `~/agent/skills/mdoc`.
 
+## `mdoc uninstall` — remove mdoc
+
+```bash
+mdoc uninstall            # remove binary, skill, and cache; keep config
+mdoc uninstall --purge    # also remove ~/.config/mdoc; skip all prompts
+```
+
+Removes the mdoc binary, the bundled skill (`~/.claude/skills/mdoc` and
+`~/.codex/skills/mdoc`), and the Chromium cache. The config directory
+(`~/.config/mdoc`, themes and custom CSS) is kept by default. On an interactive
+terminal it asks whether to remove the config directory, then confirms before
+deleting; `--purge` removes everything without prompting. Skills installed to a
+custom `--path` aren't tracked and must be removed by hand.
+
 ## Themes (important for authoring)
 
 See `themes.md` for lookup order, template data, generated classes, page

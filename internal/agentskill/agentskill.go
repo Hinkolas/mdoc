@@ -24,6 +24,13 @@ type InstallResult struct {
 	Files     int
 }
 
+// RemoveResult describes one removed (or absent) skill target.
+type RemoveResult struct {
+	Target  string
+	DestDir string
+	Existed bool
+}
+
 // Target describes one resolved install destination.
 type Target struct {
 	Name      string
@@ -88,6 +95,38 @@ func Install(name, customParent string) ([]InstallResult, error) {
 			ParentDir: target.ParentDir,
 			DestDir:   target.DestDir,
 			Files:     files,
+		})
+	}
+	return results, nil
+}
+
+// Remove deletes the installed mdoc skill for the requested agent target(s).
+// Only the <parent>/mdoc skill directory is removed — never the parent skills
+// directory itself. Targets that aren't present are reported with Existed=false
+// rather than treated as an error.
+func Remove(name, customParent string) ([]RemoveResult, error) {
+	targets, err := ResolveTargets(name, customParent)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]RemoveResult, 0, len(targets))
+	for _, target := range targets {
+		existed := true
+		if _, err := os.Stat(target.DestDir); err != nil {
+			if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("remove %s skill: %w", target.Name, err)
+			}
+			existed = false
+		}
+		if existed {
+			if err := os.RemoveAll(target.DestDir); err != nil {
+				return nil, fmt.Errorf("remove %s skill: %w", target.Name, err)
+			}
+		}
+		results = append(results, RemoveResult{
+			Target:  target.Name,
+			DestDir: target.DestDir,
+			Existed: existed,
 		})
 	}
 	return results, nil

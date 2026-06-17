@@ -63,6 +63,29 @@ func printCancelled(outPath string) {
 	fmt.Fprintf(os.Stderr, "%s cancelled — %s left unchanged\n", red("✗"), displayPath(outPath))
 }
 
+// promptConfirm asks a yes/no question and returns the answer. An empty line
+// selects defaultYes. The hint reads [Y/n] when the default is yes, [y/N]
+// otherwise — matching the convention in confirmOverwrite.
+func promptConfirm(reader *bufio.Reader, question string, defaultYes bool) (bool, error) {
+	hint := "[y/N]"
+	if defaultYes {
+		hint = "[Y/n]"
+	}
+	fmt.Printf("\n  %s %s %s ", cyan("?"), question, dim(hint))
+	line, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF && line == "" {
+		return false, err
+	}
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return true, nil
+	case "n", "no":
+		return false, nil
+	default:
+		return defaultYes, nil
+	}
+}
+
 func ansi(code, text string) string {
 	if !stdoutIsTTY {
 		return text

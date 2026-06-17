@@ -109,3 +109,35 @@ func TestCopyToCopiesBundledSkill(t *testing.T) {
 		t.Fatal("CopyTo did not overwrite stale SKILL.md")
 	}
 }
+
+func TestRemove(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "skills")
+	dest := filepath.Join(parent, "mdoc")
+	if _, err := CopyTo(dest); err != nil {
+		t.Fatalf("CopyTo: %v", err)
+	}
+
+	results, err := Remove("claude", parent)
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if len(results) != 1 || !results[0].Existed {
+		t.Fatalf("Remove results = %+v, want one Existed=true", results)
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Fatalf("skill dir still present after Remove: %v", err)
+	}
+	// The parent skills directory must be left untouched.
+	if _, err := os.Stat(parent); err != nil {
+		t.Fatalf("Remove deleted the parent skills dir: %v", err)
+	}
+
+	// Removing again is a no-op, reported as not present.
+	results, err = Remove("claude", parent)
+	if err != nil {
+		t.Fatalf("Remove (second): %v", err)
+	}
+	if len(results) != 1 || results[0].Existed {
+		t.Fatalf("second Remove results = %+v, want one Existed=false", results)
+	}
+}

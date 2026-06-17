@@ -110,12 +110,23 @@ func ResolveBinary() (string, error) {
 	return "", fmt.Errorf("no chromium found; run `mdoc install` to download one")
 }
 
-// packagedRoot is <UserCacheDir>/mdoc/chromium, or "" if the cache dir
-// isn't available on this system.
-func packagedRoot() string {
+// CacheRoot is mdoc's cache namespace, <UserCacheDir>/mdoc, or "" if the cache
+// dir isn't available on this system. Everything under it is regeneratable (the
+// packaged Chromium snapshot lives in the chromium subdir) and safe to delete.
+func CacheRoot() string {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(cacheDir, "mdoc", "chromium")
+	return filepath.Join(cacheDir, "mdoc")
+}
+
+// packagedRoot is <CacheRoot>/chromium, or "" if the cache dir isn't available
+// on this system.
+func packagedRoot() string {
+	root := CacheRoot()
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "chromium")
 }
