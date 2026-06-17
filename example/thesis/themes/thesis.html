@@ -133,7 +133,7 @@
         margin: 18mm 0 12mm;
     }
     .titlepage .tp-logo { margin: 4mm auto 10mm; }
-    .titlepage .tp-logo img { width: 62mm; height: auto; }
+    .titlepage .tp-logo svg { width: 62mm; height: auto; }
     .titlepage .tp-subtitle { font-size: 14pt; line-height: 1.5; margin: 0 auto 6mm; max-width: 75%; }
     .titlepage .tp-version { font-size: 9pt; color: #333; }
     .titlepage .tp-spacer { flex: 1 1 auto; }
@@ -372,7 +372,21 @@
 <div class="titlepage">
     {{with .Data.university}}<div class="tp-institution">{{.}}{{with $.Data.faculty}}<br>{{.}}{{end}}</div>{{end}}
     <div class="tp-title">{{.Title}}</div>
-    {{with .Data.logo}}<div class="tp-logo"><img src="{{.}}" alt="Logo"></div>{{end}}
+    {{/* Logo — embedded inline as SVG so the cover is self-contained: no
+         external asset reference, nothing to resolve at print time. Replace the
+         markup below with your institution's mark; .tp-logo svg scales it to a
+         sensible width. (Inlining a file from a path isn't possible from a
+         theme — html/template has no file-reading helper — so the mark lives
+         here rather than coming from frontmatter `data.logo`.) */}}
+    <div class="tp-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" role="img" aria-label="University logo placeholder">
+            <rect x="0" y="0" width="320" height="120" rx="8" fill="#1f2d3d"/>
+            <circle cx="60" cy="60" r="34" fill="none" stroke="#ffffff" stroke-width="4"/>
+            <path d="M60 32 L60 88 M32 60 L88 60" stroke="#ffffff" stroke-width="4"/>
+            <text x="118" y="52" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="#ffffff" font-weight="700">MUSTER</text>
+            <text x="118" y="82" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#9fb3c8">UNIVERSITÄT</text>
+        </svg>
+    </div>
     {{with .Data.subtitle}}<div class="tp-subtitle">{{.}}</div>{{end}}
     {{with .Data.version}}<div class="tp-version">{{.}}</div>{{end}}
     <div class="tp-spacer"></div>

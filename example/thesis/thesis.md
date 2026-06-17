@@ -1,6 +1,6 @@
 ---
 mdoc: true
-theme: thesis
+theme: ovgu-fin
 title: "Bachelor-/Masterarbeit"
 author: "Max Mustermann"
 tags: [thesis, vorlage, koma]
@@ -13,7 +13,6 @@ labels:
   figure: "Abbildung"
   table: "Tabelle"
 data:
-  logo: "assets/logo.svg"
   university: "Otto-von-Muster-Universität Musterstadt"
   faculty: "Fakultät für Elektrotechnik und Informationstechnik"
   subtitle: "Richtlinien zur Ausarbeitung von Bachelor- und Masterarbeiten"

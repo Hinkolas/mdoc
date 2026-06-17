@@ -1,11 +1,20 @@
-// Package theme resolves and loads HTML theme templates. Lookup order is
-// project-local ./themes/<name>.html first, then the user config directory,
-// then a small set of themes compiled into the binary.
+// Package theme resolves and loads HTML theme templates. A theme value is read
+// one of two ways:
 //
-// Resolution never hard-fails: an empty name yields the default theme, and a
-// name that can't be found or won't parse falls back to the default theme
-// paired with a non-fatal diagnostic error so callers can warn the user while
-// still rendering something presentable.
+//   - A bare key (e.g. `thesis`) names a theme in the user config directory,
+//     ~/.config/mdoc/themes/<key>.html, or one of the themes compiled into the
+//     binary ("system", "none"). Bare keys are NOT searched for next to the
+//     document — that lookup is reserved for explicit paths, so it is always
+//     unambiguous which theme a key refers to.
+//   - A path (anything with a "/" separator, a leading "." or "~", or an
+//     absolute path) names a theme file directly. A relative path resolves from
+//     the document's directory; an absolute or ~-prefixed path from the
+//     filesystem root or the user's home.
+//
+// Resolution never hard-fails: an empty value yields the default theme, and a
+// key or path that can't be found or won't parse falls back to the default
+// theme paired with a non-fatal diagnostic error so callers can warn the user
+// while still rendering something presentable.
 package theme
 
 import (
@@ -80,68 +89,118 @@ func mustParse(name, src string) *Theme {
 	return &Theme{Name: name, Template: template.Must(template.New(name).Parse(src))}
 }
 
-// Resolve finds a theme by name. It ALWAYS returns a usable, non-nil theme.
-// A project-local or user theme file takes precedence over a built-in of the
-// same name, so the built-in keywords ("system", "none") double as
-// overridable starting points — including the default: an empty name is
-// treated as the default theme name, so dropping a themes/system.html
-// customizes what unstyled-by-frontmatter documents get. A name that can't be
-// found anywhere, or a theme file that fails to parse, falls back to the
-// built-in default.
+// Resolve finds a theme. It ALWAYS returns a usable, non-nil theme. The value
+// is either a bare key, looked up in the user themes dir (~/.config/mdoc/themes)
+// and then the built-ins, or a path, resolved relative to docDir (see
+// isPath/resolvePath). An empty value is treated as the default theme key. A
+// user theme file takes precedence over a built-in of the same key, so the
+// built-in keywords ("system", "none") double as overridable starting points —
+// including the default: dropping a ~/.config/mdoc/themes/system.html customizes
+// what unstyled-by-frontmatter documents get. Anything that can't be found, or a
+// theme file that fails to parse, falls back to the built-in default.
 //
 // The returned error is a non-fatal diagnostic, not a failure: callers should
 // render with the returned theme and surface the error as a warning rather
 // than abort. It is nil when the requested theme loaded cleanly (or resolved
 // to a built-in, including when no theme was named at all).
-func Resolve(name, searchProjectDir string) (*Theme, error) {
-	if name == "" {
-		name = DefaultName
+func Resolve(value, docDir string) (*Theme, error) {
+	if value == "" {
+		value = DefaultName
 	}
+	if isPath(value) {
+		return resolvePath(value, docDir)
+	}
+	return resolveKey(value)
+}
 
-	// Theme files on disk win, so a built-in can be customized by dropping a
-	// same-named file next to the document or in the user config dir.
-	for _, dir := range SearchDirs(searchProjectDir) {
-		candidate := filepath.Join(dir, name+".html")
-		if _, err := os.Stat(candidate); err != nil {
-			continue
-		}
-		tmpl, err := template.ParseFiles(candidate)
-		if err != nil {
-			return Default(), &Fallback{
-				Requested: name,
-				Used:      DefaultName,
-				Reason:    "failed to parse",
-				Detail:    fmt.Sprintf("theme %q failed to parse (%s): %v; using the built-in %q theme", name, paths.Display(candidate), err, DefaultName),
+// isPath reports whether a theme value is an explicit file path rather than a
+// bare key. Anything with a "/" separator, a leading "." (./ or ../) or "~", or
+// an absolute path is a path; a bare word like "thesis" is a key.
+func isPath(value string) bool {
+	return strings.ContainsRune(value, '/') ||
+		strings.HasPrefix(value, ".") ||
+		strings.HasPrefix(value, "~") ||
+		filepath.IsAbs(value)
+}
+
+// resolveKey loads a bare-key theme from the user themes dir, then the
+// built-ins. A user file overrides a same-keyed built-in.
+func resolveKey(name string) (*Theme, error) {
+	if userThemes, err := paths.ThemesDir(); err == nil {
+		candidate := filepath.Join(userThemes, name+".html")
+		if _, err := os.Stat(candidate); err == nil {
+			tmpl, perr := template.ParseFiles(candidate)
+			if perr != nil {
+				return Default(), &Fallback{
+					Requested: name,
+					Used:      DefaultName,
+					Reason:    "failed to parse",
+					Detail:    fmt.Sprintf("theme %q failed to parse (%s): %v; using the built-in %q theme", name, paths.Display(candidate), perr, DefaultName),
+				}
 			}
+			return &Theme{Name: name, Path: candidate, Template: tmpl}, nil
 		}
-		return &Theme{Name: name, Path: candidate, Template: tmpl}, nil
 	}
 
-	// Fall back to a built-in of that name before giving up.
 	if thm := builtin(name); thm != nil {
 		return thm, nil
 	}
 
-	dirs := SearchDirs(searchProjectDir)
-	shown := make([]string, len(dirs))
-	for i, d := range dirs {
-		shown[i] = paths.Display(d)
+	loc := "the user themes dir"
+	if userThemes, err := paths.ThemesDir(); err == nil {
+		loc = paths.Display(userThemes)
 	}
 	return Default(), &Fallback{
 		Requested: name,
 		Used:      DefaultName,
 		Reason:    "not found",
-		Detail:    fmt.Sprintf("theme %q not found in %s; using the built-in %q theme", name, strings.Join(shown, ", "), DefaultName),
+		Detail:    fmt.Sprintf("theme %q not found in %s (use a path like ./themes/%s.html for a theme next to the document); using the built-in %q theme", name, loc, name, DefaultName),
 	}
 }
 
-// SearchDirs returns the directories searched for theme files, in order:
-// the project-local <projectDir>/themes first, then the user themes dir
-// (~/.config/mdoc/themes; see internal/paths).
-func SearchDirs(projectDir string) []string {
-	dirs := []string{filepath.Join(projectDir, "themes")}
-	if userThemes, err := paths.ThemesDir(); err == nil {
-		dirs = append(dirs, userThemes)
+// resolvePath loads a theme from an explicit path. A relative path resolves
+// from docDir; a "~" prefix expands to the user's home; an absolute path is used
+// as-is. Unlike keys, paths are taken verbatim, so the value must include the
+// .html extension.
+func resolvePath(value, docDir string) (*Theme, error) {
+	path := value
+	if strings.HasPrefix(path, "~") {
+		if home, err := os.UserHomeDir(); err == nil {
+			path = filepath.Join(home, path[1:])
+		}
 	}
-	return dirs
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(docDir, path)
+	}
+	path = filepath.Clean(path)
+
+	if _, err := os.Stat(path); err != nil {
+		return Default(), &Fallback{
+			Requested: value,
+			Used:      DefaultName,
+			Reason:    "not found",
+			Detail:    fmt.Sprintf("theme file %q not found (%s); using the built-in %q theme", value, paths.Display(path), DefaultName),
+		}
+	}
+	tmpl, err := template.ParseFiles(path)
+	if err != nil {
+		return Default(), &Fallback{
+			Requested: value,
+			Used:      DefaultName,
+			Reason:    "failed to parse",
+			Detail:    fmt.Sprintf("theme file %q failed to parse (%s): %v; using the built-in %q theme", value, paths.Display(path), err, DefaultName),
+		}
+	}
+	return &Theme{Name: value, Path: path, Template: tmpl}, nil
+}
+
+// SearchDirs returns the directories watched for bare-key theme files: the user
+// themes dir (~/.config/mdoc/themes; see internal/paths). The live-preview
+// watcher uses it so a global theme created or changed mid-session is noticed;
+// path-valued themes are watched separately via their resolved file path.
+func SearchDirs() []string {
+	if userThemes, err := paths.ThemesDir(); err == nil {
+		return []string{userThemes}
+	}
+	return nil
 }

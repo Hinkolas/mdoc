@@ -56,7 +56,7 @@ var openCmd = &cobra.Command{
 		if twarn != nil {
 			lastWarning = twarn.Error()
 		}
-		watchPaths := append([]string{doc.Path}, theme.SearchDirs(doc.Dir)...)
+		watchPaths := append([]string{doc.Path}, theme.SearchDirs()...)
 		var watcher *preview.Watcher
 		watcher, err = preview.NewWatcher(func(changed string) {
 			themePath, warning, docErr := srv.CurrentTheme()

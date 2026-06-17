@@ -118,7 +118,7 @@ Prepared for {{.Data.client}} by {{.Author}}.
 | Field          | Purpose                                                              |
 | -------------- | -------------------------------------------------------------------- |
 | `mdoc`         | Set to `true` to enable mdoc rendering for this file.                |
-| `theme`        | Theme name; resolved against `./themes/`, then `~/.config/mdoc/themes/`, then a built-in (`system`/`none`). Defaults to `system`. |
+| `theme`        | A bare key (`thesis`) resolves against `~/.config/mdoc/themes/`, then a built-in (`system`/`none`); a path (`./themes/thesis.html`, `~/x.html`, absolute) names a file directly, relative to the document. Defaults to `system`. |
 | `title`        | Document title; exposed as `{{.Title}}`.                             |
 | `author`       | Author name; exposed as `{{.Author}}`.                               |
 | `tags`         | List of tags; exposed as `{{.Tags}}`.                                |
@@ -144,13 +144,17 @@ See `example/document.md` for a doc that exercises all of these.
 
 A theme is an HTML file that wraps the rendered Markdown body. The file is processed by Go's `html/template`, so you can interpolate any of the document fields.
 
-Themes are resolved in this order:
+A `theme:` value is read one of two ways:
 
-1. `<document_dir>/themes/<name>.html`
-2. `~/.config/mdoc/themes/<name>.html` (override the base with `$XDG_CONFIG_HOME`)
-3. a built-in keyword: **`system`** (the styled default, used when `theme` is omitted) or **`none`** (bare rendered body, no styling)
+- **A bare key** (e.g. `theme: thesis`) names a theme in the user config dir, then a built-in:
+  1. `~/.config/mdoc/themes/<key>.html` (override the base with `$XDG_CONFIG_HOME`)
+  2. a built-in keyword: **`system`** (the styled default, used when `theme` is omitted) or **`none`** (bare rendered body, no styling)
 
-A theme file on disk overrides a built-in of the same name, so dropping a `themes/system.html` restyles every document that doesn't name a theme. A `theme:` that can't be found or won't parse falls back to `system` with a warning rather than failing.
+  Keys are *not* searched for next to the document, so a key always refers to one specific, global theme.
+
+- **A path** (anything with a `/`, a leading `.`/`~`, or an absolute path) names a theme file directly. Relative paths resolve from the document's directory (`theme: ./themes/thesis.html`), `~` from your home, and absolute paths from the filesystem root. Include the `.html` extension.
+
+A user theme file overrides a built-in of the same key, so dropping a `~/.config/mdoc/themes/system.html` restyles every document that doesn't name a theme. A `theme:` that can't be found or won't parse falls back to `system` with a warning rather than failing.
 
 A minimal theme:
 

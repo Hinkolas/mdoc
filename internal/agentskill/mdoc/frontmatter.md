@@ -6,7 +6,7 @@ below; unknown keys are ignored.
 | Key | Type | Default | Notes |
 |-----|------|---------|-------|
 | `mdoc` | bool | — | **Required.** Must be `true`, or the entire frontmatter is discarded and defaults apply. |
-| `theme` | string | `system` | Theme name → `./themes/<name>.html`, then `~/.config/mdoc/themes/<name>.html`, then a built-in. Two built-in keywords: **`system`** (a styled, dependable allrounder — the default when omitted/empty) and **`none`** (bare rendered body, no styling). A same-named theme file on disk overrides a built-in. A name that can't be found or parsed falls back to `system` with a warning — never a hard failure. |
+| `theme` | string | `system` | A **bare key** (e.g. `thesis`) resolves to `~/.config/mdoc/themes/<key>.html`, then a built-in — keys are *not* searched next to the document. A **path** (has a `/`, leading `.`/`~`, or absolute) names a theme file directly: relative paths resolve from the document's dir (`./themes/thesis.html`), `~`/absolute from home/root. Two built-in keywords: **`system`** (a styled, dependable allrounder — the default when omitted/empty) and **`none`** (bare rendered body, no styling). A user file overrides a built-in of the same key. Anything that can't be found or parsed falls back to `system` with a warning — never a hard failure. |
 | `title` | string | `Untitled` | HTML `<title>`; also available as `{{.Title}}`. |
 | `author` | string | `Anonymous` | Available as `{{.Author}}`. |
 | `tags` | string list | `[]` | Available as `{{.Tags}}`. |

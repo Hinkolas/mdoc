@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120" role="img" aria-label="University logo placeholder">
-  <!-- Neutral placeholder mark. Replace assets/logo.svg with your institution's
-       own logo; the title-page slot scales any image to a sensible width. -->
-  <rect x="0" y="0" width="320" height="120" rx="8" fill="#1f2d3d"/>
-  <circle cx="60" cy="60" r="34" fill="none" stroke="#ffffff" stroke-width="4"/>
-  <path d="M60 32 L60 88 M32 60 L88 60" stroke="#ffffff" stroke-width="4"/>
-  <text x="118" y="52" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="#ffffff" font-weight="700">MUSTER</text>
-  <text x="118" y="82" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#9fb3c8">UNIVERSITÄT</text>
-</svg>

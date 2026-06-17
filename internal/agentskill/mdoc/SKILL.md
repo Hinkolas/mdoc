@@ -55,16 +55,19 @@ $$
 - **cli.md** — `mdoc print` / `open` / `bundle` / `install`, their flags, and
   script-friendly output behavior.
 - **examples/document.md** — a complete sample document.
-- **examples/plain.html** — a working starter theme to copy to
-  `themes/<name>.html` and customize (the built-in `system` theme is similar).
+- **examples/plain.html** — a working starter theme to copy next to a document
+  (`themes/plain.html`, used via `theme: ./themes/plain.html`) or into
+  `~/.config/mdoc/themes/` (used via `theme: plain`) and customize (the built-in
+  `system` theme is similar).
 
 ## Producing a PDF (typical flow)
 
 1. Write the `.md` file with `mdoc: true` frontmatter.
 2. Pick a theme. Omit `theme` (or `theme: system`) for the built-in styled
-   default; `theme: none` for a bare render. A custom `theme: <name>` needs
-   `themes/<name>.html` next to the document or in `~/.config/mdoc/themes/` —
-   copy `examples/plain.html` there as a starting point. A missing/broken theme
+   default; `theme: none` for a bare render. For a custom theme, either drop a
+   file in `~/.config/mdoc/themes/` and name it by key (`theme: mytheme`), or
+   point at a file next to the document by path (`theme: ./themes/mytheme.html`)
+   — copy `examples/plain.html` as a starting point. A missing/broken theme
    falls back to `system` with a warning. (See themes.md.)
 3. Run `mdoc print <file>` for a PDF, or `mdoc open <file>` for a live preview.
 

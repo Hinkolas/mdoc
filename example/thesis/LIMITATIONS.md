@@ -294,10 +294,13 @@ Each: **Reference feature → Today → Why it's a gap → Proposed native mecha
 ### 11. Title / cover page  *(addressed in this theme)*
 
 - **Today.** The `thesis` theme renders the cover itself from frontmatter
-  `data` (logo, university, faculty, subtitle, …) plus `title`/`author` — the
+  `data` (university, faculty, subtitle, …) plus `title`/`author` — the
   theme is an `html/template` with full access to those fields, so there is no
-  cover HTML in the document body at all. Any theme can do the same; a
-  conventional `cover:` schema in core would only standardise the field names.
+  cover HTML in the document body at all. (The logo is the exception: a theme
+  can't read a file from a path — `html/template` has no file-reading helper —
+  so the mark is embedded as inline SVG in the theme rather than referenced via
+  `data.logo`.) Any theme can do the same; a conventional `cover:` schema in
+  core would only standardise the field names.
 
 ---
 

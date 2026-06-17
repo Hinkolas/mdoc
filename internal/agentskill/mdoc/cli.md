@@ -88,7 +88,9 @@ custom `--path` aren't tracked and must be removed by hand.
 
 ## Themes (important for authoring)
 
-See `themes.md` for lookup order, template data, generated classes, page
-numbers, and starter CSS. In short: omit `theme` for the built-in `system`
-theme, use `theme: none` for bare HTML, or copy `examples/plain.html` to
-`themes/<name>.html` next to the document and set `theme: <name>`.
+See `themes.md` for key-vs-path selection, template data, generated classes,
+page numbers, and starter CSS. In short: omit `theme` for the built-in `system`
+theme, use `theme: none` for bare HTML, name a global theme by key
+(`theme: report` → `~/.config/mdoc/themes/report.html`), or point at a file next
+to the document by path (`theme: ./themes/report.html`) — copy
+`examples/plain.html` as a starting point.

@@ -4,18 +4,30 @@ A theme is an HTML file processed with Go `html/template`. It receives document
 metadata plus the rendered markdown body, and it must include `{{.Body}}`
 somewhere to show the document.
 
-## Lookup order
+## Selecting a theme
 
-`theme: <name>` resolves in this order:
+A `theme:` value is read one of two ways:
 
-1. `<document-dir>/themes/<name>.html`
-2. `~/.config/mdoc/themes/<name>.html`
-3. built-ins: `system` and `none`
+- **A bare key** (e.g. `theme: thesis`) names a theme in the user themes dir,
+  then a built-in:
+  1. `~/.config/mdoc/themes/<key>.html`
+  2. built-ins: `system` and `none`
 
-Theme files on disk override built-ins of the same name, so
-`themes/system.html` next to a document customizes the default. Missing or
-broken themes are non-fatal: mdoc falls back to the built-in `system` theme and
-prints a warning.
+  Keys are *not* searched for next to the document, so it is always
+  unambiguous which theme a key refers to. A user file overrides a built-in of
+  the same key, so `~/.config/mdoc/themes/system.html` customizes the default.
+
+- **A path** (anything with a `/`, a leading `.`/`~`, or an absolute path)
+  names a theme file directly:
+  - `theme: ./themes/thesis.html` — relative to the document's directory
+  - `theme: ../shared/report.html` — relative paths walk up from the document
+  - `theme: ~/dev/theme.html` — `~` expands to your home directory
+  - `theme: /Users/me/dev.html` — absolute path
+
+  Paths are taken verbatim, so include the `.html` extension.
+
+Missing or broken themes (either form) are non-fatal: mdoc falls back to the
+built-in `system` theme and prints a warning.
 
 ## Template data
 
