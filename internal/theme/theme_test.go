@@ -68,6 +68,34 @@ func TestResolveKeyFromUserThemesDir(t *testing.T) {
 	}
 }
 
+// A scoped key resolves into a subdirectory of the user themes dir.
+func TestResolveScopedKey(t *testing.T) {
+	cfgThemes := setup(t)
+	nested := filepath.Join(cfgThemes, "kilohertz", "legal", "contract.html")
+	writeTheme(t, nested)
+
+	thm, err := Resolve("kilohertz::legal::contract", t.TempDir())
+	if err != nil {
+		t.Fatalf("unexpected diagnostic: %v", err)
+	}
+	if thm.Path != nested {
+		t.Errorf("Path = %q, want %q", thm.Path, nested)
+	}
+}
+
+// A malformed scoped key falls back to the default with an "invalid scoped key"
+// diagnostic rather than resolving somewhere unexpected.
+func TestResolveScopedKeyMalformed(t *testing.T) {
+	setup(t)
+	thm, err := Resolve("legal::", t.TempDir())
+	if err == nil {
+		t.Fatal("expected diagnostic, got nil")
+	}
+	if thm.Name != DefaultName {
+		t.Errorf("Name = %q, want fallback %q", thm.Name, DefaultName)
+	}
+}
+
 // A bare key must NOT pick up a same-named theme sitting next to the document —
 // that lookup is reserved for explicit paths.
 func TestResolveKeyIgnoresDocLocalThemesDir(t *testing.T) {
@@ -145,23 +173,5 @@ func TestResolveMissingPathFallsBack(t *testing.T) {
 	}
 	if thm.Name != DefaultName {
 		t.Errorf("Name = %q, want fallback %q", thm.Name, DefaultName)
-	}
-}
-
-func TestIsPath(t *testing.T) {
-	cases := map[string]bool{
-		"thesis":              false,
-		"system":              false,
-		"none":                false,
-		"./themes/thesis.html": true,
-		"../thesis.html":      true,
-		"themes/thesis.html":  true,
-		"~/dev.html":          true,
-		"/abs/dev.html":       true,
-	}
-	for in, want := range cases {
-		if got := isPath(in); got != want {
-			t.Errorf("isPath(%q) = %v, want %v", in, got, want)
-		}
 	}
 }

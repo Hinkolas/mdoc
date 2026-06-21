@@ -64,7 +64,7 @@ func (t *transformer) Transform(doc *gast.Document, reader text.Reader, pc parse
 			classes := classesOf(node)
 			region := matterOf(node)
 
-			numbered := t.cfg.Numbering.Enabled
+			numbered := levelNumbered(t.cfg.Numbering, node.Level)
 			intoc := true
 			if region == "front" {
 				numbered, intoc = false, false
@@ -72,7 +72,7 @@ func (t *transformer) Transform(doc *gast.Document, reader text.Reader, pc parse
 			if slices.Contains(classes, "unnumbered") {
 				numbered = false
 			} else if slices.Contains(classes, "numbered") {
-				numbered = t.cfg.Numbering.Enabled
+				numbered = levelNumbered(t.cfg.Numbering, node.Level)
 			}
 			if slices.Contains(classes, "notoc") {
 				intoc = false
@@ -95,7 +95,7 @@ func (t *transformer) Transform(doc *gast.Document, reader text.Reader, pc parse
 				for i := node.Level + 1; i < len(counters); i++ {
 					counters[i] = 0
 				}
-				number = formatNumber(counters, node.Level, isAppendix)
+				number = renderNumber(t.cfg.Numbering, counters, node.Level, isAppendix)
 				sn := NewSecNum(number)
 				if node.FirstChild() != nil {
 					node.InsertBefore(node, node.FirstChild(), sn)
@@ -266,18 +266,6 @@ func matterOf(n gast.Node) string {
 		}
 	}
 	return ""
-}
-
-func formatNumber(counters []int, level int, appendix bool) string {
-	parts := make([]string, 0, level)
-	for i := 1; i <= level; i++ {
-		if appendix && i == 1 {
-			parts = append(parts, string(rune('A'+counters[1]-1)))
-		} else {
-			parts = append(parts, strconv.Itoa(counters[i]))
-		}
-	}
-	return strings.Join(parts, ".")
 }
 
 func tocDepth(d *Directive) int {

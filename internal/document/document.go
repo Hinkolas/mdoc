@@ -55,8 +55,33 @@ func (r Reference) CiteKey() string {
 // ordinary documents don't get "1", "1.1" prefixes; thesis/report documents
 // opt in with `numbering: {enabled: true}`. A `:::toc` works either way (entries
 // just carry no number when numbering is off).
+//
+// Levels optionally tunes individual heading levels by key ("h1".."h6"). When a
+// level has no entry — or Levels is empty entirely — that level uses the built-in
+// default (decimal, dot-joined: "1", "1.1", with appendix lettering), so existing
+// documents render unchanged.
 type Numbering struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled bool                `yaml:"enabled"`
+	Levels  map[string]NumLevel `yaml:"levels"`
+}
+
+// NumLevel tunes how one heading level is numbered. Template is a format string
+// whose `{1}`..`{6}` placeholders render the counter at that level in the level's
+// own Style; literal text (e.g. "§", separators) passes through verbatim. The
+// single space that separates the number from the heading title is automatic, so
+// trailing whitespace in a template is ignored. Examples: `template: "§{1}"` ->
+// "§5", `template: "{1}.{2}"` with h2 `style: lower-alpha` -> "5.a". An empty
+// Template falls back to the default for the level. Style is one of decimal,
+// lower-roman, upper-roman, lower-alpha, upper-alpha (CSS list-style names);
+// empty or unknown means decimal.
+type NumLevel struct {
+	// Enabled toggles numbering for this level. nil inherits Numbering.Enabled;
+	// an explicit false leaves headings of this level unnumbered even when
+	// numbering is otherwise on (like applying the .unnumbered class to all of
+	// them).
+	Enabled  *bool  `yaml:"enabled"`
+	Template string `yaml:"template"`
+	Style    string `yaml:"style"`
 }
 
 // Page mirrors the relevant parts of CSS @page. Both fields are passed

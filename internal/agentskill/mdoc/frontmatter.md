@@ -14,6 +14,7 @@ below; unknown keys are ignored.
 | `page.margin` | string | theme decides | Passed verbatim into `@page { margin: … }`. CSS margin shorthand: `25mm`, `25mm 22mm`, `25mm 22mm 28mm 22mm`. |
 | `data` | map | `{}` | Arbitrary key/values, available in the body and theme as `{{.Data.<key>}}`. |
 | `numbering.enabled` | bool | `false` | Enables automatic heading numbers (`1`, `1.1`, `A.1`) and numbered TOC entries. |
+| `numbering.levels` | map | `{}` | Per-level (`h1`…`h6`) overrides: `template`, `style`, `enabled`. Empty = default decimal/dot scheme. |
 | `labels.figure` | string | `Figure` | Caption label for `:::figure` blocks, e.g. `Abbildung`. |
 | `labels.table` | string | `Table` | Caption label for `:::table` blocks, e.g. `Tabelle`. |
 | `references` | list | `[]` | Bibliography entries cited with `[@key]` and listed with `:::bibliography`. |
@@ -26,6 +27,23 @@ Notes:
 - Numbering is document-wide when enabled. `:::frontmatter` headings are
   unnumbered and omitted from the TOC by default; `:::appendix` top-level
   headings become `A`, `B`, …
+- `numbering.levels` shapes the format per heading level. Each `h1`…`h6` entry
+  takes: `template` (a format string where `{n}` is the level-*n* counter and
+  other text is literal — `"§{1}"` → `§5`, `"{1}.{2}"` → `5.1`); `style`
+  (`decimal` default, `lower-roman`, `upper-roman`, `lower-alpha`, `upper-alpha`
+  — renders that level's counter, so mixing them gives `5.a`); and `enabled`
+  (`false` leaves the level unnumbered). The separating space before the title is
+  automatic. Numbers stay real text, so they appear in the TOC and `[#id]`
+  cross-references too. Example:
+
+  ```yaml
+  numbering:
+    enabled: true
+    levels:
+      h1: { template: "§{1}", style: decimal }       # §1, §2
+      h2: { template: "{1}.{2}", style: lower-alpha } # 1.a, 1.b
+      h3: { enabled: false }
+  ```
 - There is **no** `paginate` field — pagination is always on (paged.js). A
   `paginate:` line is silently ignored.
 - Unknown frontmatter keys are ignored. Do not invent fields unless a theme reads

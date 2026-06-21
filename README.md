@@ -118,7 +118,7 @@ Prepared for {{.Data.client}} by {{.Author}}.
 | Field          | Purpose                                                              |
 | -------------- | -------------------------------------------------------------------- |
 | `mdoc`         | Set to `true` to enable mdoc rendering for this file.                |
-| `theme`        | A bare key (`thesis`) resolves against `~/.config/mdoc/themes/`, then a built-in (`system`/`none`); a path (`./themes/thesis.html`, `~/x.html`, absolute) names a file directly, relative to the document. Defaults to `system`. |
+| `theme`        | A bare or `::`-scoped key (`thesis`, `kilohertz::legal::contract`) resolves against `~/.config/mdoc/themes/`, then a built-in (`system`/`none`); a path (`./themes/thesis.html`, `~/x.html`, absolute) names a file directly, relative to the document. Defaults to `system`. |
 | `title`        | Document title; exposed as `{{.Title}}`.                             |
 | `author`       | Author name; exposed as `{{.Author}}`.                               |
 | `tags`         | List of tags; exposed as `{{.Tags}}`.                                |
@@ -144,7 +144,7 @@ See `example/document.md` for a doc that exercises all of these.
 
 A theme is an HTML file that wraps the rendered Markdown body. The file is processed by Go's `html/template`, so you can interpolate any of the document fields.
 
-A `theme:` value is read one of two ways:
+A `theme:` value is read one of three ways:
 
 - **A bare key** (e.g. `theme: thesis`) names a theme in the user config dir, then a built-in:
   1. `~/.config/mdoc/themes/<key>.html` (override the base with `$XDG_CONFIG_HOME`)
@@ -152,7 +152,9 @@ A `theme:` value is read one of two ways:
 
   Keys are *not* searched for next to the document, so a key always refers to one specific, global theme.
 
-- **A path** (anything with a `/`, a leading `.`/`~`, or an absolute path) names a theme file directly. Relative paths resolve from the document's directory (`theme: ./themes/thesis.html`), `~` from your home, and absolute paths from the filesystem root. Include the `.html` extension.
+- **A scoped key** (e.g. `theme: kilohertz::legal::contract`) is a bare key in a subdirectory: the `::` segments become path segments, resolving `~/.config/mdoc/themes/kilohertz/legal/contract.html`. It lets a large theme library use folders instead of long flat names.
+
+- **A path** (anything with a `/`, a leading `.`/`~`, an absolute path, or a file extension) names a theme file directly. Relative paths resolve from the document's directory (`theme: ./themes/thesis.html`), `~` from your home, and absolute paths from the filesystem root. Include the `.html` extension.
 
 A user theme file overrides a built-in of the same key, so dropping a `~/.config/mdoc/themes/system.html` restyles every document that doesn't name a theme. A `theme:` that can't be found or won't parse falls back to `system` with a warning rather than failing.
 
@@ -220,6 +222,15 @@ Includes are spliced **before** the document is parsed, so everything that spans
 - **Relative asset paths resolve relative to the *root* document.** The combined body renders as if it all lived in the root's directory, so shared images belong under the root's tree (e.g. a top-level `assets/`). Per-chapter asset directories are a known limitation — see `example/thesis/LIMITATIONS.md`.
 - `mdoc open` watches every included file, so editing a chapter live-reloads the preview; `mdoc bundle` packs all of them into the `.mdoc` archive at their relative paths.
 
+**Global includes.** Besides a path, an `:::include` target can be a **key** that resolves from your user includes dir, `~/.config/mdoc/includes/` — the include analogue of the themes dir. This is for reusable boilerplate shared across documents (a standard disclaimer, legal clauses, a signature block) rather than one document's chapters:
+
+```markdown
+:::include disclaimer            # ~/.config/mdoc/includes/disclaimer.md
+:::include legal::closing        # ~/.config/mdoc/includes/legal/closing.md
+```
+
+The same key/scope/path rule governs both `theme:` and `:::include`: a **bare word** (`disclaimer`) is a flat global key; a **`::`-scoped key** (`legal::closing`) is a global key in a subdirectory; anything with a `/`, a leading `.`/`~`, an absolute path, or a **file extension** (`chapter.md`) is a path resolved next to the including file. So `:::include disclaimer` is the global partial while `:::include disclaimer.md` is a sibling file. Because global partials live outside the document tree, `mdoc bundle` inlines them into the bundled document so the `.mdoc` archive stays self-contained and portable.
+
 `example/book/` is a small worked example: a root with a preface and a generated TOC, two chapters in `chapters/`, and a cross-reference running between them.
 
 ### Table of contents
@@ -243,7 +254,23 @@ numbering:
   enabled: true
 ```
 
-Per-heading markers override the region default (written as a trailing `{…}`):
+That's the default scheme: decimal, dot-joined, with appendix chapters lettered (`A`, `A.1`). To shape it, configure individual levels under `levels` by key (`h1`…`h6`):
+
+```yaml
+numbering:
+  enabled: true
+  levels:
+    h1: { template: "§{1}", style: decimal }        # §1, §2, …
+    h2: { template: "{1}.{2}", style: lower-alpha }  # 1.a, 1.b, …
+    h3: { enabled: false }                           # this level isn't numbered
+```
+
+- **`template`** is a format string. A `{n}` placeholder renders the level-*n* counter in level *n*'s own style; surrounding text (`§`, separators) is literal. So `h1: "§{1}"` gives `§5`, and an `h2: "{1}.{2}"` with `style: lower-alpha` gives `5.a`. The separating space before the heading title is automatic. A level with no `template` uses the default `{1}.{2}…` for its depth.
+- **`style`** is the numbering system for that level's counter: `decimal` (default), `lower-roman`, `upper-roman`, `lower-alpha`, `upper-alpha` — the CSS `list-style-type` names.
+- **`enabled`** overrides the global switch for one level: `false` leaves that level unnumbered even when numbering is on; omit it to inherit.
+- The number stays real text, so it flows into the TOC and `[#id]` cross-references unchanged. The appendix region still letters its chapters regardless of the configured `h1` style.
+
+Per-heading markers override the level/region default (written as a trailing `{…}`):
 
 | Marker | Effect |
 | --- | --- |

@@ -12,6 +12,7 @@
 package paths
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,74 @@ func ThemesDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(cfg, "themes"), nil
+}
+
+// IncludesDir returns the user-level includes directory, <ConfigDir>/includes.
+// It holds reusable markdown partials referenced by bare or scoped `:::include`
+// keys (the include analogue of ThemesDir).
+func IncludesDir() (string, error) {
+	cfg, err := ConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cfg, "includes"), nil
+}
+
+// RefKind classifies how a theme/include reference string should be resolved.
+// The three forms are mutually exclusive and decided by Classify.
+type RefKind int
+
+const (
+	// KindFlatKey is a bare word (e.g. "thesis"): a global asset looked up by
+	// name in the relevant config dir (themes/ or includes/).
+	KindFlatKey RefKind = iota
+	// KindScopedKey contains "::" (e.g. "kilohertz::legal::contract"): a global
+	// asset in a subdirectory of the config dir.
+	KindScopedKey
+	// KindPath is an explicit filesystem path (contains "/", a leading "." or
+	// "~", is absolute, or carries a file extension): resolved relative to the
+	// document, not the config dir.
+	KindPath
+)
+
+// Classify decides how a reference value is resolved. The "::" scope check comes
+// first so a scoped key is never mistaken for anything else; otherwise any path
+// sigil — a "/" separator, a leading "." or "~", an absolute path, or a file
+// extension — marks a path, and a plain bare word is a flat global key. The file
+// extension is what distinguishes a global key ("disclaimer") from a sibling file
+// referenced by bare name ("chapter1.md"). This rule is shared by theme and
+// include resolution so both behave identically.
+func Classify(value string) RefKind {
+	switch {
+	case strings.Contains(value, "::"):
+		return KindScopedKey
+	case strings.ContainsRune(value, '/'),
+		strings.HasPrefix(value, "."),
+		strings.HasPrefix(value, "~"),
+		filepath.IsAbs(value),
+		filepath.Ext(value) != "":
+		return KindPath
+	default:
+		return KindFlatKey
+	}
+}
+
+// ScopedKeyToRelpath turns a "::"-scoped key into a relative filesystem path,
+// e.g. "kilohertz::legal::contract" -> "kilohertz/legal/contract". It rejects
+// malformed scopes — an empty segment (from a leading, trailing, or doubled
+// "::") or a "." / ".." segment that would escape the config dir — so a bad key
+// fails loudly instead of resolving somewhere surprising.
+func ScopedKeyToRelpath(value string) (string, error) {
+	segments := strings.Split(value, "::")
+	for _, seg := range segments {
+		if seg == "" {
+			return "", fmt.Errorf("malformed scoped key %q: empty segment (check for a leading, trailing, or doubled \"::\")", value)
+		}
+		if seg == "." || seg == ".." || strings.ContainsAny(seg, "/\\") {
+			return "", fmt.Errorf("malformed scoped key %q: invalid segment %q", value, seg)
+		}
+	}
+	return filepath.Join(segments...), nil
 }
 
 // Display formats a path for showing to the user: made absolute, then with the

@@ -6,7 +6,8 @@ somewhere to show the document.
 
 ## Selecting a theme
 
-A `theme:` value is read one of two ways:
+A `theme:` value is read one of three ways (the same key/scope/path rule that
+governs `:::include`):
 
 - **A bare key** (e.g. `theme: thesis`) names a theme in the user themes dir,
   then a built-in:
@@ -17,8 +18,13 @@ A `theme:` value is read one of two ways:
   unambiguous which theme a key refers to. A user file overrides a built-in of
   the same key, so `~/.config/mdoc/themes/system.html` customizes the default.
 
-- **A path** (anything with a `/`, a leading `.`/`~`, or an absolute path)
-  names a theme file directly:
+- **A scoped key** (e.g. `theme: kilohertz::legal::contract`) is a bare key in a
+  subdirectory: `::` segments map to path segments, resolving
+  `~/.config/mdoc/themes/kilohertz/legal/contract.html`. Use it to organize a
+  large theme library into folders.
+
+- **A path** (anything with a `/`, a leading `.`/`~`, an absolute path, or a file
+  extension) names a theme file directly:
   - `theme: ./themes/thesis.html` — relative to the document's directory
   - `theme: ../shared/report.html` — relative paths walk up from the document
   - `theme: ~/dev/theme.html` — `~` expands to your home directory

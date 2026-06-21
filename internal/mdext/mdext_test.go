@@ -110,6 +110,33 @@ func TestHeadingMarkers(t *testing.T) {
 	notAny(t, got, `mdoc-secnum">2`) // Literaturverzeichnis didn't consume a number
 }
 
+func TestNumberingCustomFormat(t *testing.T) {
+	enabled := true
+	disabled := false
+	cfg := mdext.Config{Numbering: document.Numbering{
+		Enabled: true,
+		Levels: map[string]document.NumLevel{
+			"h1": {Template: "§{1}", Style: "decimal"},
+			"h2": {Template: "{1}.{2}", Style: "lower-alpha", Enabled: &enabled},
+			"h3": {Enabled: &disabled},
+		},
+	}}
+	got := render(t, cfg, strings.Join([]string{
+		"# Erste",
+		"## Unter",
+		"### Tief",
+		"# Zweite",
+	}, "\n"))
+
+	wantAll(t, got,
+		`<h1 id="erste"><span class="mdoc-secnum">§1</span>`,
+		`<h2 id="unter"><span class="mdoc-secnum">1.a</span>`,
+		`<h1 id="zweite"><span class="mdoc-secnum">§2</span>`,
+		// h3 disabled: rendered without a number span.
+		`<h3 id="tief">Tief</h3>`,
+	)
+}
+
 func TestMatterRegions(t *testing.T) {
 	got := render(t, numbered(), strings.Join([]string{
 		":::frontmatter",

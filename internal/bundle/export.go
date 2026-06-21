@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/hinkolas/mdoc/internal/document"
+	"github.com/hinkolas/mdoc/internal/paths"
 	"github.com/hinkolas/mdoc/internal/theme"
 )
 
@@ -67,31 +68,51 @@ func Export(doc *document.Document, thm *theme.Theme, opts Options) (*Result, er
 	zw := zip.NewWriter(f)
 	res := &Result{OutputPath: absOut}
 
-	// 1. The source document, at the bundle root with its original name
-	//    so the unpacked layout works as a normal mdoc project.
+	// Global `:::include` partials live in ~/.config/mdoc/includes, outside the
+	// document tree, so they have no place in a portable archive. They are
+	// inlined into the bundled files instead (FlattenGlobalIncludes); local path
+	// includes stay as separate files. includesDir lets the loop below tell the
+	// two apart by location.
+	includesDir, _ := paths.IncludesDir()
+
+	// 1. The source document, at the bundle root with its original name so the
+	//    unpacked layout works as a normal mdoc project, with global includes
+	//    flattened in so it stays self-contained.
 	docEntry := filepath.Base(doc.Path)
-	if err := addFile(zw, docEntry, doc.Path); err != nil {
+	docBody, err := document.FlattenGlobalIncludes(doc.Path)
+	if err != nil {
+		return nil, fmt.Errorf("flatten document: %w", err)
+	}
+	if err := addBytes(zw, docEntry, doc.Path, []byte(docBody)); err != nil {
 		return nil, fmt.Errorf("add document: %w", err)
 	}
 	res.Entries = append(res.Entries, docEntry)
 
-	// 1b. Files pulled in via `:::include`, at their path relative to the root
-	//     document so the splice paths keep resolving after the bundle is
-	//     unpacked. Includes are expected under the document directory (same
-	//     convention as assets); one outside it has no clean place in the
-	//     archive, so that's an error rather than a silently broken bundle.
+	// 1b. Local files pulled in via `:::include`, at their path relative to the
+	//     root document so the splice paths keep resolving after the bundle is
+	//     unpacked (their own global includes flattened in too). A global include
+	//     is skipped — already inlined above. A local include outside the
+	//     document directory has no clean place in the archive, so that's an
+	//     error rather than a silently broken bundle.
 	seen := map[string]bool{}
 	for _, inc := range doc.Includes {
 		if seen[inc] {
 			continue // a file included from two places is stored once
 		}
 		seen[inc] = true
+		if includesDir != "" && isUnder(includesDir, inc) {
+			continue // global partial: inlined, not stored as a file
+		}
 		rel, err := filepath.Rel(doc.Dir, inc)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return nil, fmt.Errorf("included file %s is outside the document directory %s; bundling requires includes under it", inc, doc.Dir)
 		}
+		body, err := document.FlattenGlobalIncludes(inc)
+		if err != nil {
+			return nil, fmt.Errorf("flatten include %s: %w", rel, err)
+		}
 		entry := filepath.ToSlash(rel)
-		if err := addFile(zw, entry, inc); err != nil {
+		if err := addBytes(zw, entry, inc, []byte(body)); err != nil {
 			return nil, fmt.Errorf("add include %s: %w", rel, err)
 		}
 		res.Entries = append(res.Entries, entry)
@@ -168,4 +189,38 @@ func addFile(zw *zip.Writer, bundlePath, sourcePath string) error {
 	}
 	_, err = io.Copy(w, src)
 	return err
+}
+
+// addBytes writes content into the zip at bundlePath, taking the entry's mtime
+// and mode from metaSource (the on-disk file the content was derived from) so a
+// rewritten file still carries sensible metadata.
+func addBytes(zw *zip.Writer, bundlePath, metaSource string, content []byte) error {
+	info, err := os.Stat(metaSource)
+	if err != nil {
+		return err
+	}
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
+	}
+	header.Name = filepath.ToSlash(bundlePath)
+	header.Method = zip.Deflate
+
+	w, err := zw.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(content)
+	return err
+}
+
+// isUnder reports whether path is dir itself or lies within it, after cleaning
+// both. Used to tell global include partials (under the user includes dir) apart
+// from local includes under the document.
+func isUnder(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

@@ -111,6 +111,20 @@ numbering:
   files, because the includes are spliced into one combined source first.
 - Include paths resolve relative to the **including** file; includes can nest. A
   cycle or a missing file is an error.
+- **Global includes by key.** Besides a path, an `:::include` target can be a key
+  resolved from `~/.config/mdoc/includes/` — for reusable boilerplate shared
+  across documents (a disclaimer, legal clauses), not one document's chapters. The
+  rule matches `theme:` resolution: a bare word is a flat key, a `::`-scoped key
+  is a subdirectory, and anything with a `/`, leading `.`/`~`, absolute path, or a
+  file extension is a path.
+  - `:::include disclaimer` → `~/.config/mdoc/includes/disclaimer.md`
+  - `:::include legal::closing` → `~/.config/mdoc/includes/legal/closing.md`
+  - `:::include disclaimer.md` → a sibling file (has an extension → path)
+
+  Use a global include for the contract pattern where reusable `§`-sections must
+  number in sequence with the document: they go through the same numbering pass as
+  body headings — no hand-written `mdoc-secnum` spans in the theme. `mdoc bundle`
+  inlines global includes so the `.mdoc` stays self-contained.
 - **Asset caveat:** the combined body renders as if it lived in the root's
   directory, so a relative `![](…)` in a chapter resolves against the *root*, not
   the chapter's folder. Put shared images under the root's tree (e.g. a top-level

@@ -6,10 +6,17 @@
 //     binary ("system", "none"). Bare keys are NOT searched for next to the
 //     document — that lookup is reserved for explicit paths, so it is always
 //     unambiguous which theme a key refers to.
-//   - A path (anything with a "/" separator, a leading "." or "~", or an
-//     absolute path) names a theme file directly. A relative path resolves from
-//     the document's directory; an absolute or ~-prefixed path from the
-//     filesystem root or the user's home.
+//   - A scoped key (e.g. `kilohertz::legal::contract`) is a bare key in a
+//     subdirectory of the themes dir: the "::" segments map to path segments, so
+//     this resolves ~/.config/mdoc/themes/kilohertz/legal/contract.html. It lets
+//     a large theme library use folders without long flat names.
+//   - A path (anything with a "/" separator, a leading "." or "~", an absolute
+//     path, or a file extension) names a theme file directly. A relative path
+//     resolves from the document's directory; an absolute or ~-prefixed path from
+//     the filesystem root or the user's home.
+//
+// The key/scope/path distinction is the shared rule in paths.Classify, so themes
+// and `:::include` references resolve identically.
 //
 // Resolution never hard-fails: an empty value yields the default theme, and a
 // key or path that can't be found or won't parse falls back to the default
@@ -107,27 +114,32 @@ func Resolve(value, docDir string) (*Theme, error) {
 	if value == "" {
 		value = DefaultName
 	}
-	if isPath(value) {
+	switch paths.Classify(value) {
+	case paths.KindScopedKey:
+		rel, err := paths.ScopedKeyToRelpath(value)
+		if err != nil {
+			return Default(), &Fallback{
+				Requested: value,
+				Used:      DefaultName,
+				Reason:    "invalid scoped key",
+				Detail:    fmt.Sprintf("theme %q is not a valid scoped key: %v; using the built-in %q theme", value, err, DefaultName),
+			}
+		}
+		return resolveKey(value, rel)
+	case paths.KindPath:
 		return resolvePath(value, docDir)
+	default: // KindFlatKey
+		return resolveKey(value, value)
 	}
-	return resolveKey(value)
 }
 
-// isPath reports whether a theme value is an explicit file path rather than a
-// bare key. Anything with a "/" separator, a leading "." (./ or ../) or "~", or
-// an absolute path is a path; a bare word like "thesis" is a key.
-func isPath(value string) bool {
-	return strings.ContainsRune(value, '/') ||
-		strings.HasPrefix(value, ".") ||
-		strings.HasPrefix(value, "~") ||
-		filepath.IsAbs(value)
-}
-
-// resolveKey loads a bare-key theme from the user themes dir, then the
-// built-ins. A user file overrides a same-keyed built-in.
-func resolveKey(name string) (*Theme, error) {
+// resolveKey loads a key theme from the user themes dir, then the built-ins. name
+// is the original value (for diagnostics and the built-in lookup); rel is the
+// path under the themes dir, which for a scoped key like "a::b" is "a/b". A user
+// file overrides a same-keyed built-in.
+func resolveKey(name, rel string) (*Theme, error) {
 	if userThemes, err := paths.ThemesDir(); err == nil {
-		candidate := filepath.Join(userThemes, name+".html")
+		candidate := filepath.Join(userThemes, rel+".html")
 		if _, err := os.Stat(candidate); err == nil {
 			tmpl, perr := template.ParseFiles(candidate)
 			if perr != nil {
@@ -154,7 +166,7 @@ func resolveKey(name string) (*Theme, error) {
 		Requested: name,
 		Used:      DefaultName,
 		Reason:    "not found",
-		Detail:    fmt.Sprintf("theme %q not found in %s (use a path like ./themes/%s.html for a theme next to the document); using the built-in %q theme", name, loc, name, DefaultName),
+		Detail:    fmt.Sprintf("theme %q not found in %s (use a path like ./themes/%s.html for a theme next to the document); using the built-in %q theme", name, loc, rel, DefaultName),
 	}
 }
 

@@ -42,6 +42,56 @@ func TestResolveIncludesBasic(t *testing.T) {
 	}
 }
 
+func TestResolveIncludesGlobalKey(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	incDir := filepath.Join(cfg, "mdoc", "includes")
+	write(t, incDir, "disclaimer.md", "## Disclaimer\n\nBoilerplate text.")
+	write(t, incDir, "legal/contract.md", "## Contract clause")
+
+	dir := t.TempDir()
+	root := ":::include disclaimer\n\n:::include legal::contract"
+	got, included, err := resolveIncludes(root, dir, []string{filepath.Join(dir, "root.md")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"## Disclaimer", "Boilerplate text.", "## Contract clause"} {
+		if !strings.Contains(got, sub) {
+			t.Errorf("missing %q in:\n%s", sub, got)
+		}
+	}
+	want := []string{filepath.Join(incDir, "disclaimer.md"), filepath.Join(incDir, "legal", "contract.md")}
+	if len(included) != 2 || included[0] != want[0] || included[1] != want[1] {
+		t.Errorf("includes = %v, want %v", included, want)
+	}
+}
+
+func TestFlattenGlobalIncludes(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	incDir := filepath.Join(cfg, "mdoc", "includes")
+	write(t, incDir, "boilerplate.md", "## Global boilerplate")
+
+	dir := t.TempDir()
+	write(t, dir, "local.md", "## Local chapter")
+	rootPath := write(t, dir, "root.md", "# Doc\n\n:::include boilerplate\n\n:::include local.md")
+
+	got, err := FlattenGlobalIncludes(rootPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Global include is spliced inline; the local path include stays a directive.
+	if !strings.Contains(got, "## Global boilerplate") {
+		t.Errorf("global include not inlined:\n%s", got)
+	}
+	if !strings.Contains(got, ":::include local.md") {
+		t.Errorf("local include should remain a directive:\n%s", got)
+	}
+	if strings.Contains(got, ":::include boilerplate") {
+		t.Errorf("global include directive should be gone:\n%s", got)
+	}
+}
+
 func TestResolveIncludesNested(t *testing.T) {
 	dir := t.TempDir()
 	// part1/index.md includes a sibling chapter by a path relative to itself.

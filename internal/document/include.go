@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/adrg/frontmatter"
+	"github.com/hinkolas/mdoc/internal/paths"
 )
 
 // maxIncludeDepth bounds nested includes so a deep (or pathological) tree can't
@@ -42,6 +43,16 @@ const maxIncludeDepth = 64
 // body came from). stack is the chain of absolute paths currently being
 // resolved, starting with the root document, used for cycle detection.
 func resolveIncludes(body, baseDir string, stack []string) (string, []string, error) {
+	return resolveIncludesFiltered(body, baseDir, stack, func(string) bool { return true })
+}
+
+// resolveIncludesFiltered is resolveIncludes with a splice predicate: only
+// directives whose target satisfies splice are expanded; the rest are kept
+// verbatim as `:::include` lines. Once a directive IS spliced, everything inside
+// the included subtree is spliced unconditionally, so the predicate only gates
+// the current level. The bundler uses this to inline global includes (which have
+// no place in a portable archive) while leaving local path includes as files.
+func resolveIncludesFiltered(body, baseDir string, stack []string, splice func(target string) bool) (string, []string, error) {
 	if len(stack) > maxIncludeDepth {
 		return "", nil, fmt.Errorf("include depth exceeds %d (cycle or runaway nesting near %s)", maxIncludeDepth, baseDir)
 	}
@@ -80,14 +91,14 @@ func resolveIncludes(body, baseDir string, stack []string) (string, []string, er
 			out = append(out, line)
 			continue
 		}
-
-		abs := path
-		if !filepath.IsAbs(abs) {
-			abs = filepath.Join(baseDir, abs)
+		if !splice(path) {
+			out = append(out, line) // keep the directive; this level skips it
+			continue
 		}
-		abs, err := filepath.Abs(abs)
+
+		abs, err := resolveIncludePath(path, baseDir)
 		if err != nil {
-			return "", nil, fmt.Errorf("resolve include %q: %w", path, err)
+			return "", nil, err
 		}
 
 		if slices.Contains(stack, abs) {
@@ -143,6 +154,77 @@ func includeTarget(trimmed string, indent int) (string, bool) {
 		return "", false // e.g. `:::includes` or `:::toc`
 	}
 	return strings.TrimSpace(after), true
+}
+
+// resolveIncludePath turns a `:::include` target into the absolute path of the
+// file to splice, using the same key/scope/path rule as theme resolution
+// (paths.Classify). A bare flat key ("disclaimer") or a scoped key
+// ("legal::contract") resolves from the user includes dir
+// (~/.config/mdoc/includes); an explicit path ("./parts/intro.md",
+// "chapters/01.md") resolves relative to baseDir — the directory of the file the
+// directive appears in, so a relative include inside a global partial resolves
+// against that partial's own directory.
+func resolveIncludePath(target, baseDir string) (string, error) {
+	switch paths.Classify(target) {
+	case paths.KindScopedKey:
+		rel, err := paths.ScopedKeyToRelpath(target)
+		if err != nil {
+			return "", fmt.Errorf("resolve include %q: %w", target, err)
+		}
+		return globalIncludePath(target, rel)
+	case paths.KindFlatKey:
+		return globalIncludePath(target, target)
+	default: // KindPath
+		abs := target
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(baseDir, abs)
+		}
+		abs, err := filepath.Abs(abs)
+		if err != nil {
+			return "", fmt.Errorf("resolve include %q: %w", target, err)
+		}
+		return abs, nil
+	}
+}
+
+// isGlobalInclude reports whether a `:::include` target resolves from the user
+// includes dir (a bare or scoped key) rather than a filesystem path.
+func isGlobalInclude(target string) bool {
+	return paths.Classify(target) != paths.KindPath
+}
+
+// FlattenGlobalIncludes reads the file at path and returns its full text (kept
+// verbatim, frontmatter and all) with every global `:::include` — a bare or
+// scoped key such as `disclaimer` or `legal::contract` — recursively spliced
+// inline, while local path includes (`./parts/intro.md`) are left as directives.
+// The bundler uses it so global partials, which live outside the document tree
+// and have no home in a portable archive, travel inside the bundled files. A
+// document with no global includes comes back unchanged.
+func FlattenGlobalIncludes(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return "", err
+	}
+	combined, _, err := resolveIncludesFiltered(string(raw), filepath.Dir(abs), []string{abs}, isGlobalInclude)
+	return combined, err
+}
+
+// globalIncludePath joins a relative path under the user includes dir and makes
+// it absolute. target is the original directive value, kept for diagnostics.
+func globalIncludePath(target, rel string) (string, error) {
+	dir, err := paths.IncludesDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve include %q: %w", target, err)
+	}
+	abs, err := filepath.Abs(filepath.Join(dir, rel+".md"))
+	if err != nil {
+		return "", fmt.Errorf("resolve include %q: %w", target, err)
+	}
+	return abs, nil
 }
 
 // readIncludedBody reads an included file and strips any YAML frontmatter,
