@@ -65,7 +65,8 @@ $$
 1. Write the `.md` file with `mdoc: true` frontmatter.
 2. Pick a theme. Omit `theme` (or `theme: system`) for the built-in styled
    default; `theme: none` for a bare render. For a custom theme, either drop a
-   file in `~/.config/mdoc/themes/` and name it by key (`theme: mytheme`), or
+   file in `~/.config/mdoc/themes/` and name it by key (`theme: mytheme`, or a
+   `::`-scoped key like `theme: acme::legal::contract` for a subfolder), or
    point at a file next to the document by path (`theme: ./themes/mytheme.html`)
    — copy `examples/plain.html` as a starting point. A missing/broken theme
    falls back to `system` with a warning. (See themes.md.)
@@ -79,7 +80,14 @@ $$
   `:::figure`, `:::table`, `:::lof`, `:::lot`, `:::bibliography`, and
   `:::page`.
 - Use `{#id}`, `{.unnumbered}`, `{.notoc}`, `{.intoc}` and frontmatter
-  `numbering.enabled` for heading numbering/TOC control.
+  `numbering.enabled` for heading numbering/TOC control. Shape the format with
+  `numbering.levels` (per-level `template` + `style`, e.g. `h1: {template:
+  "§{1}"}`) for custom systems like contract `§`-numbering, roman, or letters.
+  (See frontmatter.md.)
+- Reuse shared boilerplate (a disclaimer, legal clauses) with a global
+  `:::include disclaimer` or `:::include legal::closing` from
+  `~/.config/mdoc/includes/`; it numbers in sequence like body headings, so don't
+  hand-write `mdoc-secnum` spans in themes. (See syntax.md.)
 - Use `[#id]` for number references, `[#id page]` for page references, and
   `[@key]` for bibliography citations.
 - When creating custom themes, style the stable `mdoc-*` classes documented in
